@@ -31,8 +31,8 @@ public static void initializeEventSampleData() {
     UST_Event_Instance__c demoEventInstance = new UST_Event_Instance__c (
             Event__c = demoEvent.Id,
             Active_Status__c = 'Active',
-            Start_Date_Time__c = System.Today().addDays(7),
-            End_Date_Time__c = System.Today().addDays(7),
+            Start_Date_Time__c = System.Today().addDays(8),
+            End_Date_Time__c = System.Today().addDays(8),
             Capacity__c = 100
     );
     insert demoEventInstance;
