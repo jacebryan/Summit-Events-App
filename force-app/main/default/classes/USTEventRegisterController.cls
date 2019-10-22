@@ -35,6 +35,7 @@ public with sharing class USTEventRegisterController {
     public Boolean evtHasAppointments { get; set; }
     public String birthDateString { get; set; }
     public String dataLayerLocationType {get;set;}
+    public Currency totalEventCost {get;set;}
 
 
     public USTEventRegisterController() {
@@ -73,7 +74,8 @@ public with sharing class USTEventRegisterController {
             evtInstance = [
                     SELECT Id, Name, Event__r.Name, Event__r.Event_Name__c, Event__r.Id, Instance_Title__c, Active_Status__c, Capacity__c,
                             Event__r.Event_description__c, Event__r.Audience__c, Start_Date_Time__c, End_Date_Time__c, Current_Available_Capacity__c,
-                            Location_Type_Override__c, Location_Address_Override__c, Event__r.Close_Event_Days_Before__c, Location_Map_Link_Override__c, Location_Title_Override__c
+                            Location_Type_Override__c, Location_Address_Override__c, Event__r.Close_Event_Days_Before__c, Location_Map_Link_Override__c, Location_Title_Override__c,
+                            Event_Instance_Fee__c, Event_Instance_Fee_Index__c, Event_Instance_Fee_Additional__c, Event_Instance_Fee_Additional_Index__c
                     FROM UST_Event_Instance__c
                     WHERE Id = :evtInfo.instanceID
                     LIMIT 1
@@ -114,7 +116,8 @@ public with sharing class USTEventRegisterController {
                             // School not in this ORG
                             // Academic_Program_List__c, School__c, Ask_Mailing_Address__c, Ask_Phone__c, Event_Sponsor__c,
                             Applicant_Type__c, Location_Type__c, Location_Title__c, Location_Address__c, Location_Map_Link__c,
-                            Tracking_Event_Registration__c, Ask_Date_Of_Birth__c, Event_Type__c, RecordType.Name, Contact_Creation__c
+                            Tracking_Event_Registration__c, Ask_Date_Of_Birth__c, Event_Type__c, RecordType.Name, Contact_Creation__c,
+                            Event_Fee__c, Event_Fee_Index__c, Event_Fee_Additional__c, Event_Fee_Additional_Index__c
                     FROM UST_Event__c
                     WHERE Id = :evtInfo.evtId
                     LIMIT 1
@@ -220,6 +223,9 @@ public with sharing class USTEventRegisterController {
             addPick3 = createPicklists(eventPage.Add_Info_Question_Pick_List_3__c);
             addPick4 = createPicklists(eventPage.Add_Info_Question_Pick_List_4__c);
             addPick5 = createPicklists(eventPage.Add_Info_Question_Pick_List_5__c);
+
+            //Calculate event cost by Instance and Event fees
+            if ()
         }
 
         //If the user is logged in use that data
