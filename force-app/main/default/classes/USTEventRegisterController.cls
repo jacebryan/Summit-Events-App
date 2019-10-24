@@ -4,7 +4,7 @@
 
 public with sharing class USTEventRegisterController {
     public String test { get; set; }
-    public UST_Event_Instance__c evtInstance { get; set; }
+    public UST_Event_Instance__c eventInstance { get; set; }
     public UST_Event__c eventPage { get; set; }
     public List<UST_Event_Appointment_Type__c> apptTypes { get; set; }
     public String ContactId { get; set; }
@@ -34,9 +34,9 @@ public with sharing class USTEventRegisterController {
     public String eventStartDateTimeCrumb { get; set; }
     public Boolean evtHasAppointments { get; set; }
     public String birthDateString { get; set; }
-    public String dataLayerLocationType {get;set;}
-    public Currency totalEventCost {get;set;}
-
+    public String dataLayerLocationType { get; set; }
+    public Decimal totalEventCost { get; set; }
+    public List<UST_Event_Fee__c> eventFeeList { get; set; }
 
     public USTEventRegisterController() {
         selectedPrograms = new List<String>();
@@ -71,7 +71,7 @@ public with sharing class USTEventRegisterController {
 
         //Get Instance information
         if (String.isNotBlank(evtInfo.instanceID)) {
-            evtInstance = [
+            eventInstance = [
                     SELECT Id, Name, Event__r.Name, Event__r.Event_Name__c, Event__r.Id, Instance_Title__c, Active_Status__c, Capacity__c,
                             Event__r.Event_description__c, Event__r.Audience__c, Start_Date_Time__c, End_Date_Time__c, Current_Available_Capacity__c,
                             Location_Type_Override__c, Location_Address_Override__c, Event__r.Close_Event_Days_Before__c, Location_Map_Link_Override__c, Location_Title_Override__c,
@@ -82,15 +82,15 @@ public with sharing class USTEventRegisterController {
             ][0];
 
             //define Event ID from instanceInfo data
-            evtInfo.evtId = evtInstance.Event__r.Id;
-            instanceName = evtInstance.Name;
+            evtInfo.evtId = eventInstance.Event__r.Id;
+            instanceName = eventInstance.Name;
             Datetime currentDT = USTShared.adjustForCenteralTime(Datetime.Now());
 
-            if (evtInstance.Event__r.Close_Event_Days_Before__c != null) {
-                currentDT = currentDT.addDays(Integer.Valueof(evtInstance.Event__r.Close_Event_Days_Before__c) + 1);
+            if (eventInstance.Event__r.Close_Event_Days_Before__c != null) {
+                currentDT = currentDT.addDays(Integer.Valueof(eventInstance.Event__r.Close_Event_Days_Before__c) + 1);
             }
 
-            if (evtInstance.Current_Available_Capacity__c <= 0 || evtInstance.Active_Status__c != 'Active' || evtInstance.End_Date_Time__c <= currentDT) {
+            if (eventInstance.Current_Available_Capacity__c <= 0 || eventInstance.Active_Status__c != 'Active' || eventInstance.End_Date_Time__c <= currentDT) {
                 eventIsClosed = true;
             }
 
@@ -142,22 +142,22 @@ public with sharing class USTEventRegisterController {
             }
 
             String locationTitle = '';
-            if (!String.isBlank(evtInstance.Location_Title_Override__c)) {
-                locationTitle = evtInstance.Location_Title_Override__c;
+            if (!String.isBlank(eventInstance.Location_Title_Override__c)) {
+                locationTitle = eventInstance.Location_Title_Override__c;
             } else if (!String.isBlank(eventPage.Location_Title__c)) {
                 locationTitle = eventPage.Location_Title__c;
             }
 
             String locationMapLink = '';
-            if (!String.isBlank(evtInstance.Location_Map_Link_Override__c)) {
-                locationMapLink = evtInstance.Location_Map_Link_Override__c;
+            if (!String.isBlank(eventInstance.Location_Map_Link_Override__c)) {
+                locationMapLink = eventInstance.Location_Map_Link_Override__c;
             } else if (!String.isBlank(eventPage.Location_Map_Link__c)) {
                 locationMapLink = eventPage.Location_Map_Link__c;
             }
 
             String locationAddress = '';
-            if (!String.isBlank(evtInstance.Location_Address_Override__c)) {
-                locationAddress = evtInstance.Location_Address_Override__c;
+            if (!String.isBlank(eventInstance.Location_Address_Override__c)) {
+                locationAddress = eventInstance.Location_Address_Override__c;
             } else if (!String.isBlank(eventPage.Location_Title__c)) {
                 locationAddress = eventPage.Location_Title__c;
             }
@@ -173,16 +173,16 @@ public with sharing class USTEventRegisterController {
                 locationCrumb += ' <a href="' + locationMapLink + '" target="_blank">Map</a><br/>';
             }
 
-            if (evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null) {
-                eventStartDateTimeCrumb = evtInstance.Start_Date_Time__c.format('MMMM d, YYYY, h:mm a') + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a');
+            if (eventInstance.Start_Date_Time__c != null && eventInstance.End_Date_Time__c != null) {
+                eventStartDateTimeCrumb = eventInstance.Start_Date_Time__c.format('MMMM d, YYYY, h:mm a') + ' - ' + eventInstance.End_Date_Time__c.format('h:mm a');
             }
 
             if (!String.isBlank(locationCrumb)) {
                 locationCrumb = locationCrumb.removeEnd('<br/>');
                 String eventTime = '';
-                if (evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null) {
-                    eventTime = evtInstance.Start_Date_Time__c.format('EEEE MMMM dd, YYYY');
-                    eventTime += '<br/>' + evtInstance.Start_Date_Time__c.format('h:mm a') + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a') + '<br/>';
+                if (eventInstance.Start_Date_Time__c != null && eventInstance.End_Date_Time__c != null) {
+                    eventTime = eventInstance.Start_Date_Time__c.format('EEEE MMMM dd, YYYY');
+                    eventTime += '<br/>' + eventInstance.Start_Date_Time__c.format('h:mm a') + ' - ' + eventInstance.End_Date_Time__c.format('h:mm a') + '<br/>';
                 }
                 locationCrumb = eventTime + locationCrumb;
                 locationCrumb = '<h3>Event Details</h3> <p>' + locationCrumb + '</p>';
@@ -194,7 +194,7 @@ public with sharing class USTEventRegisterController {
                     SELECT Id
                     From UST_Event_Appointment_Type__c
                     WHERE UST_Event__c = :evtInfo.evtId
-                    AND (Restrict_To_Instance_Title__r.Instance_Title__c = :evtInstance.Instance_Title__c OR Restrict_To_Instance_Title__r.Instance_Title__c = null)
+                    AND (Restrict_To_Instance_Title__r.Instance_Title__c = :eventInstance.Instance_Title__c OR Restrict_To_Instance_Title__r.Instance_Title__c = null)
             ];
             if (apptTypes.size() > 0) {
                 evtHasAppointments = true;
@@ -224,8 +224,41 @@ public with sharing class USTEventRegisterController {
             addPick4 = createPicklists(eventPage.Add_Info_Question_Pick_List_4__c);
             addPick5 = createPicklists(eventPage.Add_Info_Question_Pick_List_5__c);
 
-            //Calculate event cost by Instance and Event fees
-            if ()
+            //Calculate event cost by Instance and Event fees and add to list of fees for upsert
+            eventFeeList = new List<UST_Event_Fee__c>();
+            totalEventCost = 0;
+            if (eventPage.Event_Fee__c != null) {
+                totalEventCost += eventPage.Event_Fee__c;
+                eventFeeList.add(new UST_Event_Fee__c(
+                        Event_Fee__c = eventPage.Event_Fee__c,
+                        Fee_Index__c = eventPage.Event_Fee_Index__c,
+                        Fee_Type__c = 'Event'
+                ));
+            }
+            if (eventPage.Event_Fee_Additional__c != null) {
+                totalEventCost += eventPage.Event_Fee_Additional__c;
+                eventFeeList.add(new UST_Event_Fee__c(
+                        Event_Fee__c = eventPage.Event_Fee_Additional__c,
+                        Fee_Index__c = eventPage.Event_Fee_Additional_Index__c,
+                        Fee_Type__c = 'Event Additional'
+                ));
+            }
+            if (eventInstance.Event_Instance_Fee__c != null) {
+                totalEventCost += eventInstance.Event_Instance_Fee__c;
+                eventFeeList.add(new UST_Event_Fee__c(
+                        Event_Fee__c = eventInstance.Event_Instance_Fee__c,
+                        Fee_Index__c = eventInstance.Event_Instance_Fee_Index__c,
+                        Fee_Type__c = 'Event Instance'
+                ));
+            }
+            if (eventInstance.Event_Instance_fee_additional__c != null) {
+                totalEventCost += eventInstance.Event_Instance_fee_additional__c;
+                eventFeeList.add(new UST_Event_Fee__c(
+                        Event_Fee__c = eventInstance.Event_Instance_fee_additional__c,
+                        Fee_Index__c = eventInstance.Event_Instance_fee_additional_Index__c,
+                        Fee_Type__c = 'Event Instance Additional'
+                ));
+            }
         }
 
         //If the user is logged in use that data
@@ -557,10 +590,9 @@ public with sharing class USTEventRegisterController {
         }
 
         //Create registration if event Registration does not exist
-
         if (String.isBlank(evtInfo.evtRegId) || evtInfo.evtRegId == 'COMING') {
             newEvtReg.Status__c = 'Started';
-            newEvtReg.Date__c = Date.valueof(evtInstance.Start_Date_Time__c);
+            newEvtReg.Date__c = Date.valueof(eventInstance.Start_Date_Time__c);
             newEvtReg.Event__c = evtInfo.evtId;
             newEvtReg.Event_Instance__c = evtInfo.instanceID;
             newEvtReg.Contact__c = contactId;
@@ -577,19 +609,50 @@ public with sharing class USTEventRegisterController {
             }
             evtInfo.evtRegId = newEvtReg.Id;
 
-                //make matching log functional for reparenting
+            //make matching log functional for reparenting
 
 
-            } else {
-                //update registration if Registration exists
-                try {
-                    upsert newEvtReg;
-                } catch (Exception ex) {
-                    ApexPages.Message myMsg = new ApexPages.Message(ApexPages.Severity.WARNING, ex.getMessage());
-                    ApexPages.addMessage(myMsg);
-                }
+        } else {
+            //update registration if Registration exists
+            try {
+                upsert newEvtReg;
+                evtInfo.evtRegId = newEvtReg.Id;
+            } catch (Exception ex) {
+                ApexPages.Message myMsg = new ApexPages.Message(ApexPages.Severity.WARNING, ex.getMessage());
+                ApexPages.addMessage(myMsg);
+            }
 
         }
+
+        //Check and create fees and save on registration
+        List<UST_Event_Fee__c> recordedEventFeeList = [SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c FROM UST_Event_Fee__c];
+        if (recordedEventFeeList.size() > 0) {
+            List<UST_Event_Fee__c> upsertFees = new List<UST_Event_Fee__c>();
+            //Fees already exist so checks need to be made if current fees are there
+            Boolean feeFound = false;
+            for (Integer ff = 0; ff < eventFeeList.size(); ff++) {
+                feeFound = false;
+                for (UST_Event_Fee__c recordedFees : recordedEventFeeList) {
+                    if (eventFeeList[ff].Fee_Type__c == recordedFees.Fee_Type__c) {
+                        eventFeeList[ff].Id = recordedFees.Id;
+                    }
+                }
+                if(String.isBlank(eventFeeList[ff].Event_Registration__c)) {
+                    eventFeeList[ff].Event_Registration__c = evtInfo.evtRegId;
+                }
+            }
+        } else {
+            //No Fees have ever been recorded on this event. Apply event registration id to all fees.
+            if (eventFeeList.size() > 0) {
+                for (Integer ff = 0; ff < eventFeeList.size(); ff++) {
+                    eventFeeList[ff].Event_Registration__c = evtInfo.evtRegId;
+                }
+            }
+        }
+        if (eventFeeList.size() > 0) {
+            upsert eventFeeList;
+        }
+
 
         if (String.isNotBlank(evtInfo.evtRegId) && evtInfo.evtRegId != 'COMING') {
             if (evtHasAppointments) {
