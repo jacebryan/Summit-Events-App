@@ -625,21 +625,35 @@ public with sharing class USTEventRegisterController {
         }
 
         //Check and create fees and save on registration
-        List<UST_Event_Fee__c> recordedEventFeeList = [SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c FROM UST_Event_Fee__c];
+        List<UST_Event_Fee__c> recordedEventFeeList = [
+                SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c
+                FROM UST_Event_Fee__c
+                WHERE Fee_Type__c != 'Appointment'
+        ];
+        List<UST_Event_Fee__c> deleteFees = new List<UST_Event_Fee__c>();
         if (recordedEventFeeList.size() > 0) {
             List<UST_Event_Fee__c> upsertFees = new List<UST_Event_Fee__c>();
             //Fees already exist so checks need to be made if current fees are there
-            Boolean feeFound = false;
+            List<Id> recordedUsedIds = new list<Id>();
             for (Integer ff = 0; ff < eventFeeList.size(); ff++) {
-                feeFound = false;
                 for (UST_Event_Fee__c recordedFees : recordedEventFeeList) {
                     if (eventFeeList[ff].Fee_Type__c == recordedFees.Fee_Type__c) {
                         eventFeeList[ff].Id = recordedFees.Id;
+                        recordedUsedIds.add(recordedFees.Id);
                     }
                 }
-                if(String.isBlank(eventFeeList[ff].Event_Registration__c)) {
+                if (String.isBlank(eventFeeList[ff].Event_Registration__c)) {
                     eventFeeList[ff].Event_Registration__c = evtInfo.evtRegId;
                 }
+            }
+            List<UST_Event_Fee__c> deleteEventFees = [
+                    SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c
+                    FROM UST_Event_Fee__c
+                    WHERE Fee_Type__c != 'Appointment'
+                    AND Id NOT IN :recordedUsedIds
+            ];
+            if (deleteEventFees.size()>0) {
+                delete deleteEventFees;
             }
         } else {
             //No Fees have ever been recorded on this event. Apply event registration id to all fees.
