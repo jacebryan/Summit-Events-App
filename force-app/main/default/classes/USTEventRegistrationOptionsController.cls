@@ -63,7 +63,8 @@ public with sharing class USTEventRegistrationOptionsController {
                     appts = new Map<ID, UST_Event_Appointment_Type__c>( [
                             SELECT Id, Name, Title__c, Description__c, Appointment_Type__c, Appointment_Category__c, Appointment_Limits__c, Chosen_State__c,
                                     Registrant_Input__c, Custom_Picklist__c, Sort_Order__c, Auto_Confirm_Appointment__c, Auto_add_building__c, Auto_Add_Time__c, Do_Not_Show_Time__c,
-                                    Date_Available_Start__c, Date_Available_End__c, Day_of_Week_Availability__c, Required_Appointment__c, Appointment_Type_Status__c
+                                    Date_Available_Start__c, Date_Available_End__c, Day_of_Week_Availability__c, Required_Appointment__c, Appointment_Type_Status__c,
+                                    Appointment_Fee__c, Appointment_Fee_Index__c, Appointment_Fee_Additional__c, Appointment_Fee_Additional_Index__c
                             FROM UST_Event_Appointment_Type__c
                             WHERE UST_Event__c = :evtinfo.evtId
                             AND (Restrict_To_Instance_Title__r.Instance_Title__c = :evtInstance.Instance_Title__c OR Restrict_To_Instance_Title__r.Instance_Title__c = null)

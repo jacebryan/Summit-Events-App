@@ -1,4 +1,4 @@
-minimum_cumulusci_version: '2.5.5'
+minimum_cumulusci_version: '3.0.2'
 project:
     name: USTEventsDX
     package:
@@ -6,7 +6,7 @@ project:
         namespace:  ustevent
         api_version: '46.0'
     dependencies:
-        - github: 'https://github.com/SalesforceFoundation/EDA/tree/rel/1.81'
+        - github: 'https://github.com/SalesforceFoundation/EDA'
     source_format: sfdx
 
 tasks:

@@ -628,7 +628,7 @@ public with sharing class USTEventRegisterController {
         List<UST_Event_Fee__c> recordedEventFeeList = [
                 SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c
                 FROM UST_Event_Fee__c
-                WHERE Fee_Type__c != 'Appointment'
+                WHERE Fee_Type__c != 'Appointment' AND Fee_Type__c != 'Appointment Additional'
         ];
         List<UST_Event_Fee__c> deleteFees = new List<UST_Event_Fee__c>();
         if (recordedEventFeeList.size() > 0) {
@@ -649,7 +649,7 @@ public with sharing class USTEventRegisterController {
             List<UST_Event_Fee__c> deleteEventFees = [
                     SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c
                     FROM UST_Event_Fee__c
-                    WHERE Fee_Type__c != 'Appointment'
+                    WHERE Fee_Type__c != 'Appointment' AND Fee_Type__c != 'Appointment Additional'
                     AND Id NOT IN :recordedUsedIds
             ];
             if (deleteEventFees.size()>0) {

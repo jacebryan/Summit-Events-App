@@ -3,23 +3,36 @@
  -->
 
 <apex:page id="USTEventRegistrationOptions" showHeader="false" sidebar="false" applyHtmlTag="false" applyBodyTag="false" standardStylesheets="false" docType="html-5.0" cache="false" controller="USTEventRegistrationOptionsController" action="{!checkEventDetails}">
+    <apex:includeLightning/>
     <apex:composition template="{!templateSelected}">
         <apex:define name="metaPageTitle">
             {!eventPage.Event_Name__c}
-            <apex:outputText rendered="{!!ISBLANK(evtInstance.Instance_Title__c)}" value="{! ' - ' + evtInstance.Instance_Title__c}" />
+            <apex:outputText rendered="{!!ISBLANK(evtInstance.Instance_Title__c)}" value="{! ' - ' + evtInstance.Instance_Title__c}"/>
             - Options
         </apex:define>
         <apex:define name="pageTitle"><a href="{!eventPage.Event_Home_Link_URL__c}">{!eventPage.Event_Home_Link_Title__c}</a></apex:define>
-        <apex:define name="afterJquery"> 
+        <apex:define name="afterJquery">
             <link href="{!URLFOR($Resource.USTEventAssets, '/css/main.css')}" rel="stylesheet" type="text/css"/>
             <script src="{!URLFOR($Resource.USTEventAssets, '/js/options.js')}" type="text/javascript"/>
             <script src="{!URLFOR($Resource.USTEventAssets, '/chosen/chosen.ust.jquery.min.js')}" type="text/javascript"/>
         </apex:define>
         <apex:define name="sectionNav"/>
         <apex:define name="body">
+            <div id="LWCHere"/>
+            <script>
+                $Lightning.use("c:ustEventVF",
+                    function () {
+                        $Lightning.createComponent(
+                            "c:ustEventAppointment",
+                            {},
+                            "LWCHere"
+                        )
+                    }
+                );
+            </script>
             <div class="row">
                 <div class="columns errorMessages">
-                    <apex:messages />
+                    <apex:messages/>
                     <apex:outputText escape="false" value="{!test}"/>
                 </div>
             </div>
