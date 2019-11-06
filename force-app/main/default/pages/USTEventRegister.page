@@ -8,8 +8,8 @@ Created by Thaddaeus Dahlberg on 5/1/2018.
 <apex:page id="USTEventRegister" showHeader="false" sidebar="false" applyHtmlTag="false" applyBodyTag="false" standardStylesheets="false" docType="html-5.0" cache="false" controller="USTEventRegisterController" action="{!checkEventDetails}">
     <apex:composition template="{!templateSelected}">
         <apex:define name="metaPageTitle">
-            {!evtInstance.Event__r.Event_Name__c}
-            <apex:outputText rendered="{!!ISBLANK(evtInstance.Instance_Title__c)}" value="{! ' - ' + evtInstance.Instance_Title__c}"/>
+            {!eventInstance.Event__r.Event_Name__c}
+            <apex:outputText rendered="{!!ISBLANK(eventInstance.Instance_Title__c)}" value="{! ' - ' + eventInstance.Instance_Title__c}"/>
             - Registration
         </apex:define>
         <apex:define name="pageTitle"><a href="{!eventPage.Event_home_Link_URL__c}">{!eventPage.Event_Home_Link_Title__c}</a></apex:define>
@@ -36,12 +36,12 @@ Created by Thaddaeus Dahlberg on 5/1/2018.
             <apex:form id="USTRegistraterForm">
                 <div class="row">
                     <div class="columns eventCrumb">
-                        <span class="eventName">{!evtInstance.Event__r.Event_Name__c}</span>
-                        <apex:outputPanel layout="none" rendered="{!!ISBLANK(evtInstance.Instance_Title__c)}">
+                        <span class="eventName">{!eventInstance.Event__r.Event_Name__c}</span>
+                        <apex:outputPanel layout="none" rendered="{!!ISBLANK(eventInstance.Instance_Title__c)}">
                             <span class="bc-spacer"><span>»</span></span>
-                            <span class="eventInstance">{!evtInstance.Instance_Title__c}</span>
+                            <span class="eventInstance">{!eventInstance.Instance_Title__c}</span>
                         </apex:outputPanel>
-                        <apex:outputPanel layout="inline" styleClass="eventDate" rendered="{!IF(!ISBLANK(evtInstance.Start_Date_Time__c) && !ISBLANK(evtInstance.Start_Date_Time__c),true,false)}">
+                        <apex:outputPanel layout="inline" styleClass="eventDate" rendered="{!IF(!ISBLANK(eventInstance.Start_Date_Time__c) && !ISBLANK(eventInstance.Start_Date_Time__c),true,false)}">
                             <span class="bc-spacer"><span>»</span></span>
                             {!eventStartDateTimeCrumb}
                         </apex:outputPanel>
@@ -65,6 +65,11 @@ Created by Thaddaeus Dahlberg on 5/1/2018.
                     <div class="row">
                         <div class="columns">
                             <apex:outputText escape="false" value="{!eventPage.Event_description__c}"></apex:outputText>
+                            <apex:outputPanel layout="none" rendered="{!IF(totalEventCost!= 0,true,false)}">
+                                <h3>Event Cost</h3>
+                                <p>$<apex:outputText value="{!totalEventCost}"></apex:outputText>
+                                </p>
+                            </apex:outputPanel>
                             <apex:outputText escape="false" value="{!locationCrumb}" rendered="{!IF(!ISBLANK(locationCrumb), true, false)}"/>
                         </div>
                     </div>
