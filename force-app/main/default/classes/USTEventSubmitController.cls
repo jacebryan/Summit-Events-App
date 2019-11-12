@@ -8,27 +8,24 @@ public with sharing class USTEventSubmitController {
     public String test { get; set; }
     public USTEventShared.USTEventInfo evtInfo { get; set; }
     public UST_Event__C eventPage { get; set; }
+    public UST_Event_Registration__c eventRegistration { get; set; }
     public UST_Event_Instance__c evtInstance { get; set; }
     public List<UST_Event_Appointment_Type__c> appts { get; set; }
     public List<UST_Event_Appointments__c> chosenAppts { get; set; }
     public String chosenFormatted { get; set; }
     public String templateSelected { get; set; }
     public String eventStartDateTimeCrumb { get; set; }
+    public String communityBaseURL { get; set; }
+    public Map <String, String> feesByIndex { get; set; }
 
     /*Below are all private attribute*/
-    // private EnrollmentrxRx__Enrollment_Opportunity__c application; //Store current application
-    private Contact student; // store current Contact
     private String touchNetService;
     private String gatewayOrigin;
     private Map<String, String> mapResponse = new Map<String, String>();
     private String contactName;
     private Map<String, String> params;
-    // private List<EnrollmentrxRx__Admissions_Document__c> admisDocList;
-    private Map<String, String> admDocInfoMap;
-    private String successLink;
-    private String errorLink;
-    private String cancelLink;
     private String feeTypeInfo;//get the payment type value from the url parameter.
+    private List<UST_Event_Fee__c> eventFees { get; set; }
 
     /*Below are all public get;set; attribute*/
     public String upayURL { get; set; }
@@ -37,35 +34,25 @@ public with sharing class USTEventSubmitController {
     public String ticket { get; set; }
     public String ticketName { get; set; }
     public Double paymentAmount { get; set; }
-    public String docName { get; set; }
     public String docNameVal { get; set; }
-    public Boolean isPayButtonShow { get; set; }
+    public Boolean showPaymentButton { get; set; }
     public String docStatus { get; set; }
     public String paymentMessage { get; set; }
-    public String collegeOfInterest { get; set; }
-    public List<SelectOption> LLCDD { get; set; }
-    public List<SelectOption> LLCDD2 { get; set; }
-    public String LLC { get; set; }
-    public String LLC2 { get; set; }
-    public String springHousing { get; set; }
-    public List<SelectOption> SPRHSNG { get; set; }
-    public String applicantType { get; set; }
-    public Boolean isPriorTerm { get; set; }
-    public Boolean isInternational { get; set; }
+
+    public string headers { get; set; }
 
     public USTEventSubmitController() {
         test = '';
         templateSelected = USTShared.defaultTemplate;
-
+        UST_Event_Settings__c myUserSetting = UST_Event_Settings__c.getInstance(UserInfo.getUserId());
+        communityBaseURL = myUserSetting.Community_Base_URL__c;
+        paymentAmount = 0;
         /****** Code for Custom Payment Setting Start from here ********/
         UST_Event_Settings__c custSetting = UST_Event_Settings__c.getInstance();
         touchNetService = custSetting.Tlink_URL__c;
         upayURL = custSetting.Upay_URL__c;
         upayId = custSetting.UpayId__c;
         gatewayOrigin = custSetting.Gateway_Origin__c;
-        successLink = custSetting.Deposit_Fee_Success_Link__c;//Payment Successfull redirection link
-        errorLink = custSetting.Deposit_Fee_Error_Link__c;//Payment Error redirection link
-        cancelLink = custSetting.Deposit_Fee_Cancel_Link__c;//In case of user click on cancel button from payment gateway
         /****** Code for Custom Payment Setting End from here ********/
 
 
@@ -110,6 +97,68 @@ public with sharing class USTEventSubmitController {
                 }
                 chosenFormatted += '</ul>';
             }
+
+            //Get Event registrant information if possible
+            eventRegistration = [
+                    SELECT Registrant_First_Name__c, Registrant_Last_Name__c, Registrant_City__c, Registrant_State_Province__c, Registrant_State__c,
+                            Registrant_Postal_Code__c, Registrant_Zip__c, Registrant_Street_1__c, Registrant_Street_2__c, Registrant_Email__c, Registrant_Country__c
+                    FROM UST_Event_Registration__c
+                    WHERE Id = :evtInfo.evtRegId
+            ];
+
+            //Collect Fees
+            eventFees = [SELECT Name, Event_Fee__c, Fee_Index__c, Description__c, Fee_Type__c, UST_Event__c, Event_Appointment_Type__c FROM UST_Event_Fee__c WHERE Event_Registration__c = :evtInfo.EvtRegId];
+            feesByIndex = new Map<String, String>();
+            for (UST_Event_Fee__c fee : eventFees) {
+                if (fee.Event_Fee__c != null && fee.Event_Fee__c > 0) {
+                    paymentAmount += fee.Event_Fee__c;
+                    if (feesByIndex.size() > 0) {
+                        if (feesByIndex.containsKey(fee.Fee_Index__c)) {
+                            Decimal newFee = Decimal.valueOf(feesByIndex.get(fee.Fee_Index__c));
+                            newFee = newFee + fee.Event_Fee__c;
+                            newFee = newFee.setScale(2);
+                            feesByIndex.put(fee.Fee_Index__c, String.valueOf(newFee));
+                        } else {
+                            feesByIndex.put(fee.Fee_Index__c, String.valueOf(fee.Event_Fee__c));
+                        }
+                    } else {
+                        feesByIndex.put(fee.Fee_Index__c, String.valueOf(fee.Event_Fee__c));
+                    }
+                }
+            }
+
+//            //Check for postback of payment gateway
+//            params = ApexPages.currentPage().getParameters();
+//            Map<String, String> headers = ApexPages.currentPage().getheaders();
+//            system.debug('###headers:' + headers);
+//            system.debug('###params:' + params);
+//            system.debug('###session_identifier:' + params.get('session_identifier'));
+//            system.debug('###referer:' + headers.get('Referer'));
+//            system.debug('testing' + headers.get('Referer') + 'gateWay' + gatewayOrigin);
+//            if (headers.get('Referer') != null && headers.get('Referer').trim().toLowerCase().contains(gatewayOrigin)) {
+//                /* Session Identifier will not come in case of cancel and Error*/
+//                if (params.get('session_identifier') != null) {
+//                    successReturnFromGateway = true;
+//                    Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING, 'Your payment is processing. Please do not refresh the page.'));
+//                } else {
+//                    Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Transaction has been cancelled, please pay your fee.'));
+//
+//                }
+//            }
+
+            headers = '';
+            MAP<string, string> hdrs = ApexPages.currentPage().getheaders();
+            for (string key : hdrs.keySet()) {
+                headers += key + ' : ' + hdrs.get(key) + '<br/>';
+            }
+
+
+            showPaymentButton = false;
+            if (paymentAmount != null && paymentAmount > 0) {
+                showPaymentButton = true;
+                generateTicket();
+            }
+
         }
 
     }
@@ -147,6 +196,8 @@ public with sharing class USTEventSubmitController {
     /******* Below is used to generating ticket for Touchnet ********/
     public void generateTicket() {
         system.debug('paymentAmount' + paymentAmount);
+        ticketName = 'ThomasTicket';
+
         String envelop = '';
 
         envelop = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:typ="http://types.secureLink.touchnet.com">';
@@ -158,34 +209,139 @@ public with sharing class USTEventSubmitController {
         envelop += '            <typ:name>AMT</typ:name>';
         envelop += '            <typ:value>' + paymentAmount + '</typ:value>';
         envelop += '        </typ:nameValuePairs>';
+
+        //Add fees by index code
+        Integer ff = 0;
+        String accountSuffix = '';
+        for (String key : feesByIndex.keySet()) {
+            if (ff > 0) {
+                accountSuffix = '_' + String.valueOf(ff + 1);
+            } else {
+                accountSuffix = '';
+            }
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>CREDIT_ACCT_CODE' + accountSuffix + '</typ:name>';
+            envelop += '            <typ:value>' + feesByIndex.get(key) + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>CREDIT_ACCT_AMT' + accountSuffix + '</typ:name>';
+            envelop += '            <typ:value>' + key + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+            ff++;
+        }
+
+        //Pass along customer NAME to pre-fill form. Concat first and last name if they exist with a space between.
+        if (String.isNotBlank(eventRegistration.Registrant_First_Name__c) || String.isNotBlank(eventRegistration.Registrant_Last_Name__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_NAME</typ:name>';
+            envelop += '            <typ:value>';
+            if (String.isNotBlank(eventRegistration.Registrant_First_Name__c)) {
+                envelop += eventRegistration.Registrant_First_Name__c;
+
+            }
+            if (String.isNotBlank(eventRegistration.Registrant_First_Name__c) && String.isNotBlank(eventRegistration.Registrant_Last_Name__c)) {
+                envelop += ' ';
+            }
+            if (String.isNotBlank(eventRegistration.Registrant_Last_Name__c)) {
+                envelop += eventRegistration.Registrant_Last_Name__c;
+            }
+            envelop += '            </typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Pass along customer EMAIL to pre-fill form
+        if (String.isNotBlank(eventRegistration.Registrant_Email__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_EMAIL_ADDRESS</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_Email__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Pass along customer ADDRESS 1 to pre-fill form
+        if (String.isNotBlank(eventRegistration.Registrant_Street_1__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_STREET1</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_Street_1__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Pass along customer ADDRESS 2 to pre-fill form
+        if (String.isNotBlank(eventRegistration.Registrant_Street_2__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_STREET2</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_Street_2__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Pass along customer CITY to pre-fill form
+        if (String.isNotBlank(eventRegistration.Registrant_City__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_CITY</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_City__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Pass along customer STATE to pre-fill form
+        if (String.isNotBlank(eventRegistration.Registrant_State__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_STATE</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_State__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Pass along customer ZIP or POSTAL CODE to pre-fill form
+        if (String.isNotBlank(eventRegistration.Registrant_Zip__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_POSTAL_CODE</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_Zip__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        } else if (String.isNotBlank(eventRegistration.Registrant_Postal_Code__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_STATE</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_Postal_Code__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Pass along customer COUNTRY to pre-fill form
+        If (String.isNotBlank(eventRegistration.Registrant_Country__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>BILL_COUNTRY</typ:name>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_Country__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        //Links where to send on different status
         envelop += '        <typ:nameValuePairs>';
         envelop += '            <typ:name>SUCCESS_LINK</typ:name>';
-        envelop += '            <typ:value>' + successLink + '</typ:value>';
+        envelop += '            <typ:value>' + communityBaseURL + 'USTEventSubmit</typ:value>';
         envelop += '        </typ:nameValuePairs>';
         envelop += '        <typ:nameValuePairs>';
         envelop += '            <typ:name>CANCEL_LINK</typ:name>';
-        envelop += '            <typ:value>' + cancelLink + '</typ:value>';
+        envelop += '            <typ:value>' + communityBaseURL + 'USTEventSubmit</typ:value>';
         envelop += '        </typ:nameValuePairs>';
         envelop += '        <typ:nameValuePairs>';
         envelop += '            <typ:name>ERROR_LINK</typ:name>';
-        envelop += '            <typ:value>' + errorLink + '</typ:value>';
+        envelop += '            <typ:value>' + communityBaseURL + 'USTEventSubmit</typ:value>';
         envelop += '        </typ:nameValuePairs>';
+
+
         envelop += '        <typ:nameValuePairs>';
         envelop += '            <typ:name>EXT_TRANS_ID</typ:name>';
-        envelop += '            <typ:value>' + contactName + ' | ' + 'THAD-HERE:eventReg.Name' + '$$docName' + docNameVal + '</typ:value>';
+        envelop += '            <typ:value>' + evtInfo.evtRegId + '</typ:value>';
         envelop += '        </typ:nameValuePairs>';
+
+        //This could be an encrypted key
         envelop += '        <typ:nameValuePairs>';
         envelop += '            <typ:name>POSTING_KEY</typ:name>';
-        envelop += '            <typ:value>' + docNameVal + '</typ:value>';
+        envelop += '            <typ:value>' + evtInfo.evtRegId + '</typ:value>';
         envelop += '        </typ:nameValuePairs>';
         envelop += '    </typ:generateSecureLinkTicketRequest>';
         envelop += '</soapenv:Body>';
         envelop += '</soapenv:Envelope>';
+        System.debug(envelop);
+
 
         try {
-            System.debug('print envelop: ' + envelop);
-            System.debug('print touchNetService: ' + touchNetService);
-
             HTTP h = new HTTP();
             HTTPRequest r = new HTTPRequest();
             r.setEndpoint(touchNetService);
@@ -203,7 +359,7 @@ public with sharing class USTEventSubmitController {
             ticket = mapResponse.get('ticket');
             system.debug('ticket' + ticket);
         } catch (Exception ex) {
-            Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.FATAL, 'Error connecting payment gateway, please try later!!'));
+            Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.FATAL, 'Error connecting payment gateway, please try later!!' + ex.getMessage()));
         }
     }
 
