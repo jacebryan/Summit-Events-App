@@ -490,16 +490,29 @@ public with sharing class USTEventRegisterController {
         return picklists;
     }
 
+    public without sharing class encryptKeySet {
+        public void setKey() {
+            UST_Event_Settings__c ustEventSettings = UST_Event_Settings__c.getOrgDefaults();
+            if (String.isBlank(ustEventSettings.Encryption_Key__c)) {
+                Blob cryptoKey = Crypto.generateAesKey(256);
+                String encryptionString = EncodingUtil.base64Encode(cryptoKey).substring(0,32);
+                ustEventSettings.Encryption_Key__c = encryptionString;
+                //upsert new UST_Event_Settings__c(SetupOwnerId=UserInfo.getOrganizationId(), Encryption_Key__c='encryptionString');
+                upsert ustEventSettings;
+            }
+        }
+    }
+
     public PageReference saveContactRegistration() {
         boolean newContactCreated = false;
         PageReference optionPage;
-
+        encryptKeySet eks = new encryptKeySet();
+        eks.setKey();
         //Record selected programs of interest
         String recordSelPrg = '';
         Pattern TAG_REGEX = Pattern.compile('\\((\\w+|\\w+\\|\\w+)\\)');
         List<String> majorCodes = new List<String>();
         Boolean progSelectionMade = true;
-
 
         /* if (selectedPrograms.isEmpty() && String.isBlank(selectedProgramsOne) && !String.isBlank(eventPage.Academic_Program_List__c)) {
              selectedPrograms = eventPage.Academic_Program_List__c.split(';');

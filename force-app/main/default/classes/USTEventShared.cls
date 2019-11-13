@@ -7,6 +7,7 @@ public with sharing class USTEventShared {
     //private key for encryption
     Private Blob key = Blob.valueOf('TmC%2%1119fzG2PrtP7f&6acnc#y8@vr');
     Public String defaultTemplate = 'CastorTemplate2017';
+    private String encryptionString {get;set;}
 
     public class USTEventInfo {
         public String audience { get; set; }
@@ -18,6 +19,18 @@ public with sharing class USTEventShared {
 
     public USTEventShared() {
 
+    }
+
+    public Blob getEncryptionBlob() {
+        UST_Event_Settings__c ustEventSettings = UST_Event_Settings__c.getInstance();
+        encryptionString  = ustEventSettings.Encryption_Key__c;
+        if (String.isBlank(encryptionString)) {
+            Blob cryptoKey = Crypto.generateAesKey(256);
+            encryptionString = EncodingUtil.base64Encode(cryptoKey).substring(0,32);
+            SYSTEM.DEBUG('ENCRYPTION STRING : ' + encryptionString);
+        }
+        Blob encyptionBlob = Blob.valueOf(encryptionString);
+        return encyptionBlob;
     }
 
     public USTEventInfo getUSTEventInfo() {
@@ -102,17 +115,14 @@ public with sharing class USTEventShared {
     }
 
     public PageReference checkForEvent() {
+
+        UST_Event_Settings__c ustEventSettings = UST_Event_Settings__c.getInstance();
+        String communityBaseURL = ustEventSettings.Community_Base_URL__c;
         USTEventInfo evt = new USTEventInfo();
         PageReference myVFPage = null;
         evt = getUSTEventInfo();
-        SYSTEM.debug('!!!!!!!!!!!!!!!  EVENT ID : ' + evt.evtId + ' , INSTANCE ID : ' + evt.instanceID + ' , EVENT REG ID : ' + evt.evtRegId);
-
-        // UST_Event_Settings__c orgDefault = UST_Event_Settings__c.getOrgDefaults();
-        // UST_Event_Settings__c myProfileSetting = UST_Event_Settings__c.getInstance(UserInfo.getProfileId());
-        UST_Event_Settings__c myUserSetting = UST_Event_Settings__c.getInstance(UserInfo.getUserId());
-        String communityBaseURL = myUserSetting.Community_Base_URL__c;
-
-        //System.Debug('COMMUNITY URL: ' + communityBaseURL);
+        ustEventSettings = UST_Event_Settings__c.getInstance();
+        //SYSTEM.debug('!!!!!!!!!!!!!!!  EVENT ID : ' + evt.evtId + ' , INSTANCE ID : ' + evt.instanceID + ' , EVENT REG ID : ' + evt.evtRegId);
 
         //String ustEventSettings = UST_Event_Settings__c.getValues('Community_Base_URL__c');
         if ((String.isBlank(evt.evtRegId) && !ApexPages.currentPage().getUrl().containsIgnoreCase('USTEventRegister')) || String.isBlank(evt.instanceID)) {
@@ -141,7 +151,8 @@ public with sharing class USTEventShared {
 
     public String createEncryptedCookie(String CookieValue, String CookieName) {
         Blob data = Blob.valueOf(CookieValue);
-        Blob encrypted = Crypto.encryptWithManagedIV('AES256', key, data);
+        //If encryptedString has never been created record the current string
+        Blob encrypted = Crypto.encryptWithManagedIV('AES256', getEncryptionBlob(), data);
         String encodedCipherText = EncodingUtil.base64Encode(encrypted);
         encodedCipherText = EncodingUtil.urlEncode(encodedCipherText, 'UTF-8');
         Cookie USTEventCookie = new Cookie(CookieName, encodedCipherText, null, -1, false);
@@ -158,7 +169,7 @@ public with sharing class USTEventShared {
             try {
                 Blob decrypted = Crypto.decryptWithManagedIV(
                         'AES256',
-                        key,
+                        getEncryptionBlob(),
                         EncodingUtil.base64Decode(
                                 EncodingUtil.urlDecode(encodedCipherText.getValue(), 'UTF-8')
                         )

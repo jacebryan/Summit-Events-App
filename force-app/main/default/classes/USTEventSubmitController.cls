@@ -44,17 +44,17 @@ public with sharing class USTEventSubmitController {
     public USTEventSubmitController() {
         test = '';
         templateSelected = USTShared.defaultTemplate;
-        UST_Event_Settings__c myUserSetting = UST_Event_Settings__c.getInstance(UserInfo.getUserId());
-        communityBaseURL = myUserSetting.Community_Base_URL__c;
-        paymentAmount = 0;
-        /****** Code for Custom Payment Setting Start from here ********/
+
+        /** Get custom settings for USTEvents **/
         UST_Event_Settings__c custSetting = UST_Event_Settings__c.getInstance();
+        communityBaseURL = custSetting.Community_Base_URL__c;
         touchNetService = custSetting.Tlink_URL__c;
         upayURL = custSetting.Upay_URL__c;
         upayId = custSetting.UpayId__c;
         gatewayOrigin = custSetting.Gateway_Origin__c;
-        /****** Code for Custom Payment Setting End from here ********/
 
+        /****** Code for Custom Payment Setting End from here ********/
+        paymentAmount = 0;
 
         //Get cookie or URL string variable
         evtInfo = USTShared.getUSTEventInfo();
@@ -146,24 +146,48 @@ public with sharing class USTEventSubmitController {
 //                }
 //            }
 
-            headers = '';
-            MAP<string, string> hdrs = ApexPages.currentPage().getheaders();
-            for (string key : hdrs.keySet()) {
-                headers += key + ' : ' + hdrs.get(key) + '<br/>';
-            }
-
-
-            showPaymentButton = false;
-            if (paymentAmount != null && paymentAmount > 0) {
-                showPaymentButton = true;
-                generateTicket();
-            }
+//            headers = '';
+//            MAP<string, string> hdrs = ApexPages.currentPage().getheaders();
+//            for (string key : hdrs.keySet()) {
+//                headers += key + ' : ' + hdrs.get(key) + '<br/>';
+//            }
+//            headers += '<br/><br/><strong>Params</strong><br/>';
+//            params = ApexPages.currentPage().getParameters();
+//            for (string key : params.keySet()) {
+//                headers += key + ' = ' + params.get(key) + '<br/>';
+//            }
+//
+//            showPaymentButton = false;
+//            if (paymentAmount != null && paymentAmount > 0) {
+//                showPaymentButton = true;
+//                generateTicket();
+//            }
+//
+//            headers += '<br/><br/>';
 
         }
 
     }
 
     public PageReference checkEventDetails() {
+        headers = '';
+        MAP<string, string> hdrs = ApexPages.currentPage().getheaders();
+        for (string key : hdrs.keySet()) {
+            headers += key + ' : ' + hdrs.get(key) + '<br/>';
+        }
+        headers += '<br/><br/><strong>Params</strong><br/>';
+        params = ApexPages.currentPage().getParameters();
+        for (string key : params.keySet()) {
+            headers += key + ' = ' + params.get(key) + '<br/>';
+        }
+
+        showPaymentButton = false;
+        if (paymentAmount != null && paymentAmount > 0) {
+            showPaymentButton = true;
+            generateTicket();
+        }
+
+        headers += '<br/><br/>';
         return USTShared.checkForEvent();
     }
 
