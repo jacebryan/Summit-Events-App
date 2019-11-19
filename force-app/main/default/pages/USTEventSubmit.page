@@ -38,7 +38,15 @@ Created by Thaddaeus Dahlberg on 5/1/2018.
                     </apex:outputPanel>
                 </div>
             </div>
-            <div class="row">
+            <apex:outputPanel layout="block" rendered="{!successReturnFromGateway}" styleClass="row">
+                <div class="column">
+                    <script>fadeout();</script>
+                    <h2>Please hold on...</h2>
+                    <p>As we process your payment.</p>
+                </div>
+            </apex:outputPanel>
+
+            <apex:outputPanel layout="block" rendered="{!!successReturnFromGateway}" styleClass="row">
                 <div class="column">
                     <h2>
                         <apex:outputText escape="false" value="{!eventPage.Event_Submit_Title__c}"/>
@@ -46,13 +54,9 @@ Created by Thaddaeus Dahlberg on 5/1/2018.
                     <p>
                         <apex:outputText escape="false" value="{!eventPage.Event_Submit_Description__c}"/>
                     </p>
-                </div>
-            </div>
-            <div class="row">
-                <div class="column">
                     <apex:outputText escape="false" value="{!chosenFormatted}"/>
                 </div>
-            </div>
+            </apex:outputPanel>
             <apex:outputPanel layout="block" rendered="{!showPaymentButton}" styleClass="row">
                 <div class="column">
                     <h2>Cost</h2>
@@ -81,10 +85,9 @@ Created by Thaddaeus Dahlberg on 5/1/2018.
                         <div class="column">
                             <input id="TICKET_NAME" type="hidden" name="TICKET_NAME" value="{!ticketName}"/>
                             <input id="TICKET" type="hidden" name="TICKET" value="{!ticket}"/>
-                            <input id="UPAY_SITE_ID" type="hidden" name="UPAY_SITE_ID" value="{!upayId}"/>
-                            <input type="submit"/>
-                            <!--                        <apex:commandLink onClick="fadeout();" value="Pay and Complete Registration" id="submitPayment" styleClass="button confirmContinue"/>-->
-                            <!--                        <apex:commandLink action="{!previousPage}" onClick="fadeout();" Value="Previous" id="previousPagePayment" styleClass="button previous"/>-->
+                            <input id="UPAY_SITE_ID" type="hidden" name="UPAY_SITE_ID" value="{!upayId}" />
+                            <a href="javascript:;" onclick="fadeout(); document.getElementById('upayForm').submit();" class="button confirmContinue">Submit and Pay</a>
+                            <a href="javascript:;" onclick="fadeout(); window.history.go(-1); return false;" class="button previous">Previous</a>
                         </div>
                     </div>
                 </form>

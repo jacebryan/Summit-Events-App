@@ -10,7 +10,6 @@ public with sharing class USTEventSubmitController {
     public UST_Event__C eventPage { get; set; }
     public UST_Event_Registration__c eventRegistration { get; set; }
     public UST_Event_Instance__c evtInstance { get; set; }
-    public List<UST_Event_Appointment_Type__c> appts { get; set; }
     public List<UST_Event_Appointments__c> chosenAppts { get; set; }
     public String chosenFormatted { get; set; }
     public String templateSelected { get; set; }
@@ -24,7 +23,6 @@ public with sharing class USTEventSubmitController {
     private Map<String, String> mapResponse = new Map<String, String>();
     private String contactName;
     private Map<String, String> params;
-    private String feeTypeInfo;//get the payment type value from the url parameter.
     private List<UST_Event_Fee__c> eventFees { get; set; }
 
     /*Below are all public get;set; attribute*/
@@ -34,10 +32,8 @@ public with sharing class USTEventSubmitController {
     public String ticket { get; set; }
     public String ticketName { get; set; }
     public Double paymentAmount { get; set; }
-    public String docNameVal { get; set; }
+    public Double existingPaymentAmount { get; set; }
     public Boolean showPaymentButton { get; set; }
-    public String docStatus { get; set; }
-    public String paymentMessage { get; set; }
 
     public string headers { get; set; }
 
@@ -48,6 +44,7 @@ public with sharing class USTEventSubmitController {
         /** Get custom settings for USTEvents **/
         UST_Event_Settings__c custSetting = UST_Event_Settings__c.getInstance();
         communityBaseURL = custSetting.Community_Base_URL__c;
+        communityBaseURL = communityBaseURL.replace('http://', 'https://');
         touchNetService = custSetting.Tlink_URL__c;
         upayURL = custSetting.Upay_URL__c;
         upayId = custSetting.UpayId__c;
@@ -55,7 +52,7 @@ public with sharing class USTEventSubmitController {
 
         /****** Code for Custom Payment Setting End from here ********/
         paymentAmount = 0;
-
+        existingPaymentAmount = 0;
         //Get cookie or URL string variable
         evtInfo = USTShared.getUSTEventInfo();
         chosenFormatted = '';
@@ -106,6 +103,12 @@ public with sharing class USTEventSubmitController {
                     WHERE Id = :evtInfo.evtRegId
             ];
 
+            //Check for preexisting payment
+            List<UST_Event_Payment__c> existingPayment = [SELECT Id, Payment_Amount__c, TouchnetReceiptNumber__c From UST_Event_Payment__c WHERE Event_Registration__c = :evtInfo.evtRegId];
+            if (existingPayment.size() > 0) {
+                existingPaymentAmount = existingPayment[0].Payment_Amount__c;
+            }
+
             //Collect Fees
             eventFees = [SELECT Name, Event_Fee__c, Fee_Index__c, Description__c, Fee_Type__c, UST_Event__c, Event_Appointment_Type__c FROM UST_Event_Fee__c WHERE Event_Registration__c = :evtInfo.EvtRegId];
             feesByIndex = new Map<String, String>();
@@ -126,51 +129,37 @@ public with sharing class USTEventSubmitController {
                     }
                 }
             }
+            if (existingPaymentAmount > 0) {
+                paymentAmount = paymentAmount - existingPaymentAmount;
+            }
 
-//            //Check for postback of payment gateway
-//            params = ApexPages.currentPage().getParameters();
-//            Map<String, String> headers = ApexPages.currentPage().getheaders();
-//            system.debug('###headers:' + headers);
-//            system.debug('###params:' + params);
-//            system.debug('###session_identifier:' + params.get('session_identifier'));
-//            system.debug('###referer:' + headers.get('Referer'));
-//            system.debug('testing' + headers.get('Referer') + 'gateWay' + gatewayOrigin);
-//            if (headers.get('Referer') != null && headers.get('Referer').trim().toLowerCase().contains(gatewayOrigin)) {
-//                /* Session Identifier will not come in case of cancel and Error*/
-//                if (params.get('session_identifier') != null) {
-//                    successReturnFromGateway = true;
-//                    Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING, 'Your payment is processing. Please do not refresh the page.'));
-//                } else {
-//                    Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Transaction has been cancelled, please pay your fee.'));
-//
-//                }
-//            }
-
-//            headers = '';
-//            MAP<string, string> hdrs = ApexPages.currentPage().getheaders();
-//            for (string key : hdrs.keySet()) {
-//                headers += key + ' : ' + hdrs.get(key) + '<br/>';
-//            }
-//            headers += '<br/><br/><strong>Params</strong><br/>';
-//            params = ApexPages.currentPage().getParameters();
-//            for (string key : params.keySet()) {
-//                headers += key + ' = ' + params.get(key) + '<br/>';
-//            }
-//
-//            showPaymentButton = false;
-//            if (paymentAmount != null && paymentAmount > 0) {
-//                showPaymentButton = true;
-//                generateTicket();
-//            }
-//
-//            headers += '<br/><br/>';
-
+            if (paymentAmount > 0) {
+                showPaymentButton = true;
+                generateTicket();
+            }
         }
 
     }
 
     public PageReference checkEventDetails() {
+        //Check for postback of payment gateway
+        params = ApexPages.currentPage().getParameters();
+        Map<String, String> returnHeaders = ApexPages.currentPage().getheaders();
+        if (returnHeaders.get('Referer') != null && returnHeaders.get('Referer').trim().toLowerCase().contains(gatewayOrigin)) {
+            /* Session Identifier will not come in case of cancel and Error*/
+            if (params.get('session_identifier') != null) {
+                successReturnFromGateway = true;
+                Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING, 'Your payment is processing. Please do not refresh the page.'));
+                return addPaymentInformation();
+            } else {
+
+                Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Transaction has been cancelled, please pay your fee.'));
+            }
+        }
+
+        /* Display headers and parameters for testing
         headers = '';
+
         MAP<string, string> hdrs = ApexPages.currentPage().getheaders();
         for (string key : hdrs.keySet()) {
             headers += key + ' : ' + hdrs.get(key) + '<br/>';
@@ -188,6 +177,10 @@ public with sharing class USTEventSubmitController {
         }
 
         headers += '<br/><br/>';
+
+        */
+
+        successReturnFromGateway = false;
         return USTShared.checkForEvent();
     }
 
@@ -212,9 +205,6 @@ public with sharing class USTEventSubmitController {
         }
         return lastPage;
     }
-
-
-    /* Payment gateway stuff */
 
 
     /******* Below is used to generating ticket for Touchnet ********/
@@ -416,28 +406,23 @@ public with sharing class USTEventSubmitController {
         return '';  //should never reach here
     }
 
-    /****** Payment request to Touchnet, setting different parameters ***/
-
-    private String getTransactionFeeName() {
-        String extTransIdInfo = ApexPages.currentPage().getParameters().get('EXT_TRANS_ID');
-        String feeNameValue = '';
-        if (String.isNotBlank(extTransIdInfo)) {
-            String[] arrTrans = extTransIdInfo.split('docName');
-            if (String.isNotBlank(arrTrans[1])) {
-                feeNameValue = arrTrans[1];
-            }
-        }
-        return feeNameValue;
-    }
-
     public PageReference addPaymentInformation() {
-        PageReference pageRedirect = null;
+        PageReference pageRedirect = new PageReference(ApexPages.currentPage().getUrl());
         Savepoint sp = null;
         try {
-            system.debug('@@@@@successReturnFromGateway:' + successReturnFromGateway);
             if (successReturnFromGateway) {
                 String envelop = '';
-                // String envelop = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:typ="http://types.secureLink.touchnet.com"><soapenv:Header/><soapenv:Body><typ:authorizeAccountRequest><typ:session>' + params.get('session_identifier') + '</typ:session><typ:invoiceNumber>' + application.Name + '</typ:invoiceNumber><typ:ancillaryData>EnrollmentRx Berkeley</typ:ancillaryData><typ:application>EnrollmentRx</typ:application></typ:authorizeAccountRequest></soapenv:Body></soapenv:Envelope>';
+                envelop += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:typ="http://types.secureLink.touchnet.com">';
+                envelop += '    <soapenv:Header/>';
+                envelop += '    <soapenv:Body>';
+                envelop += '        <typ:authorizeAccountRequest>';
+                envelop += '            <typ:session>' + params.get('session_identifier') + '</typ:session>';
+                envelop += '            <typ:invoiceNumber>' + evtInfo.evtRegId + '</typ:invoiceNumber>';
+                envelop += '            <typ:ancillaryData>EnrollmentRx Berkeley</typ:ancillaryData>';
+                envelop += '            <typ:application>EnrollmentRx</typ:application>';
+                envelop += '            </typ:authorizeAccountRequest>';
+                envelop += '    </soapenv:Body>';
+                envelop += '</soapenv:Envelope>';
                 HTTP h = new HTTP();
                 HTTPRequest r = new HTTPRequest();
                 r.setTimeout(120000); // timeout in milliseconds
@@ -459,11 +444,10 @@ public with sharing class USTEventSubmitController {
 
                 //check if application has payment information
                 if (mapResponse.containskey('receiptNumber') && mapResponse.get('receiptNumber') != '') {
-
-                    feeTypeInfo = getTransactionFeeName();
-
+                    //feeTypeInfo = getTransactionFeeName();
                     sp = Database.setSavepoint();
                     UST_Event_Payment__c paymentInformation = new UST_Event_Payment__c();
+                    paymentInformation.Event_Registration__c = evtInfo.evtRegId;
                     paymentInformation.Address_1__c = params.get('acct_addr');
                     paymentInformation.Address_2__c = params.get('acct_addr2');
                     paymentInformation.City__c = params.get('acct_city');
@@ -481,47 +465,16 @@ public with sharing class USTEventSubmitController {
                     paymentInformation.Gateway_Session_Identifier__c = params.get('session_identifier');
                     paymentInformation.TouchnetReceiptNumber__c = mapResponse.get('receiptNumber');
                     paymentInformation.GatewayApprovalCode__c = mapResponse.get('approvalCode');
-//                    paymentInformation.PaymentType__c = feeTypeInfo;
-//                    paymentInformation.Application__c = application.Id;
                     paymentInformation.Method_of_Payment__c = 'Credit Card';
                     paymentInformation.Payment_Status__c = 'Received';
                     paymentInformation.Payment_Received_Date__c = System.Now();
                     insert paymentInformation;
 
-                    /**** Below If and Else IF case is used to store the Payment Information Id into their respective type of payment ******//*
-                    if (String.isNotBlank(feeTypeInfo) && (feeTypeInfo == 'Housing Deposit')) {
-                        application.HousingDepositLookup__c = paymentInformation.Id;
-                        application.Housing_Deposit_Received_Date__c = System.Now();
-                    } else if (String.isNotBlank(feeTypeInfo) && (feeTypeInfo == 'Confirming Deposit')) {
-                        application.ConfirmingDepositLookup__c = paymentInformation.Id;
-                        application.Confirming_Deposit_Received_Date__c = System.Now();
-                    } else if (String.isNotBlank(feeTypeInfo) && (feeTypeInfo == 'Both')) {
-                        application.BothPaymentsLookup__c = paymentInformation.Id;
-                        application.Housing_Deposit_Received_Date__c = System.Now();
-                        application.Confirming_Deposit_Received_Date__c = System.Now();
-                    }
-
-                    *//**** Below If case is used to set the application admission status field to confirmed in case of payment type Both or Confirming Deposit ****//*
-                    if (String.isNotBlank(feeTypeInfo) && (feeTypeInfo == 'Both' || feeTypeInfo == 'Confirming Deposit')) {
-                        application.EnrollmentrxRx__Admissions_Status__c = 'Confirmed';
-                    }
-
-                    application.Payment_Information__c = paymentInformation.Id;
-                    application.Payment_Status__c = true;
-                    application.Payment_Mode__c = 'Credit Card';
-                    update application;
-
-                    *//**** Below If case is used to update the admisison document Info ***//*
-                    if (String.isNotBlank(feeTypeInfo)) {
-                        updateAdmisDoc(feeTypeInfo);
-                    }
-                    */
-
-
                     successReturnFromGateway = false;
-                    pageRedirect = new PageReference(ApexPages.currentPage().getheaders().get('Referer'));
+
+                    pageRedirect = Page.USTEventConfirmation;
                     pageRedirect.setRedirect(true);
-                    //Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.CONFIRM, 'Payment Successful: Your '+docNameVal+' fee has been successfully processed.'));
+                    return pageRedirect;
                 } else {
                     successReturnFromGateway = false;
                     Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Transaction was not successful, please try again'));

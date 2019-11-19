@@ -114,7 +114,7 @@ public static void setSiteURL() {
     pr.getParameters().put('guid', site.GuestUserId);
     pr.getParameters().put('sitedebugmode', 'x');
     String url = pr.getContent().toString().substringAfter('URL=').substringBefore(path);
-
+    url = url.replace('http://','https://');
     UST_Event_Settings__c eventSettings = UST_Event_Settings__c.getOrgDefaults();
     eventSettings.Community_Base_URL__c = url;
     upsert eventSettings;
