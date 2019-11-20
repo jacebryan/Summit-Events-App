@@ -52,6 +52,10 @@
                 <behavior>Edit</behavior>
                 <field>Payment_Gateway_Donation__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Edit</behavior>
+                <field>Payment_Gateway_Donation_Index__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>

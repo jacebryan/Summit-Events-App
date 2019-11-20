@@ -85,9 +85,10 @@ Created by Thaddaeus Dahlberg on 5/1/2018.
                         <div class="column">
                             <input id="TICKET_NAME" type="hidden" name="TICKET_NAME" value="{!ticketName}"/>
                             <input id="TICKET" type="hidden" name="TICKET" value="{!ticket}"/>
-                            <input id="UPAY_SITE_ID" type="hidden" name="UPAY_SITE_ID" value="{!upayId}" />
+                            <input id="UPAY_SITE_ID" type="hidden" name="UPAY_SITE_ID" value="{!upayId}"/>
                             <a href="javascript:;" onclick="fadeout(); document.getElementById('upayForm').submit();" class="button confirmContinue">Submit and Pay</a>
-                            <a href="javascript:;" onclick="fadeout(); window.history.go(-1); return false;" class="button previous">Previous</a>
+
+                            <a href="{!IF(eventHasOptions, communityBaseURL + 'usteventregistrationoptions', communityBaseURL +'usteventregister')}" onclick="fadeout();" class="button previous">Previous</a>
                         </div>
                     </div>
                 </form>

@@ -13,6 +13,7 @@ public with sharing class USTEventConfirmationController {
     public String eventStartDateTimeCrumb {get;set;}
     public String locationCrumb { get; set; }
     public String dataLayerLocationType {get;set;}
+    public String backLink {get;set;}
 
     public USTEventConfirmationController() {
 
@@ -30,11 +31,20 @@ public with sharing class USTEventConfirmationController {
             templateSelected = eventPage.Template__c;
 
             evtInstance = [
-                    SELECT Instance_Title__c, Start_Date_Time__c, Event__r.Event_Name__c, End_Date_Time__c
+                    SELECT Id, Instance_Title__c, Start_Date_Time__c, Event__r.Event_Name__c, End_Date_Time__c
                     FROM UST_Event_Instance__c
                     WHERE Id = :evtinfo.instanceID
                     LIMIT 1
             ];
+
+            if (String.isNotBlank(eventPage.Event_Home_Link_URL__c)) {
+                backLink = eventPage.Event_Home_Link_URL__c;
+            } else {
+                UST_Event_Settings__c custSetting = UST_Event_Settings__c.getOrgDefaults();
+                String communityBaseURL = custSetting.Community_Base_URL__c;
+                communityBaseURL = communityBaseURL.replace('http://', 'https://');
+                backLink = communityBaseURL + '/USTEventRegister?instanceID=' + evtInstance.Id;
+            }
 
             if(evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null ) {
                 eventStartDateTimeCrumb = evtInstance.Start_Date_Time__c.format('MMMM d, YYYY, h:mm a') + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a');

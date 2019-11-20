@@ -16,6 +16,7 @@ public with sharing class USTEventSubmitController {
     public String eventStartDateTimeCrumb { get; set; }
     public String communityBaseURL { get; set; }
     public Map <String, String> feesByIndex { get; set; }
+    public Boolean eventHasOptions { get; set; }
 
     /*Below are all private attribute*/
     private String touchNetService;
@@ -39,10 +40,11 @@ public with sharing class USTEventSubmitController {
 
     public USTEventSubmitController() {
         test = '';
+        eventHasOptions = false;
         templateSelected = USTShared.defaultTemplate;
 
         /** Get custom settings for USTEvents **/
-        UST_Event_Settings__c custSetting = UST_Event_Settings__c.getInstance();
+        UST_Event_Settings__c custSetting = UST_Event_Settings__c.getOrgDefaults();
         communityBaseURL = custSetting.Community_Base_URL__c;
         communityBaseURL = communityBaseURL.replace('http://', 'https://');
         touchNetService = custSetting.Tlink_URL__c;
@@ -50,7 +52,7 @@ public with sharing class USTEventSubmitController {
         upayId = custSetting.UpayId__c;
         gatewayOrigin = custSetting.Gateway_Origin__c;
 
-        /****** Code for Custom Payment Setting End from here ********/
+        /** Code for Custom Payment Setting End from here **/
         paymentAmount = 0;
         existingPaymentAmount = 0;
         //Get cookie or URL string variable
@@ -58,7 +60,9 @@ public with sharing class USTEventSubmitController {
         chosenFormatted = '';
         if (!String.isEmpty(evtInfo.evtId)) {
             eventPage = [
-                    SELECT Event_Name__c, Event_Submit_Title__c, Event_Submit_Description__c, Event_Footer__c, Template__c, Event_Home_Link_Title__c, Event_Home_Link_URL__c, Tracking_Submit_Registration__c
+                    SELECT Event_Name__c, Event_Submit_Title__c, Event_Submit_Description__c, Event_Footer__c, Template__c,
+                            Event_Home_Link_Title__c, Event_Home_Link_URL__c, Tracking_Submit_Registration__c, Payment_Gateway_Donation__c,
+                            Payment_Gateway_Donation_Index__c
                     FROM UST_Event__c
                     WHERE Id = :evtinfo.evtId
             ][0];
@@ -68,6 +72,17 @@ public with sharing class USTEventSubmitController {
 
             if (evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null) {
                 eventStartDateTimeCrumb = evtInstance.Start_Date_Time__c.format('MMMM d, YYYY, h:mm a') + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a');
+            }
+
+            List<UST_Event_Appointment_Type__c> apptTypes = [
+                    SELECT Id
+                    From UST_Event_Appointment_Type__c
+                    WHERE UST_Event__c = :evtInfo.evtId
+                    AND (Restrict_To_Instance_Title__r.Instance_Title__c = :evtInstance.Instance_Title__c OR Restrict_To_Instance_Title__r.Instance_Title__c = null)
+            ];
+
+            if (apptTypes.size() > 0) {
+                eventHasOptions = true;
             }
         }
 
@@ -95,21 +110,22 @@ public with sharing class USTEventSubmitController {
                 chosenFormatted += '</ul>';
             }
 
-            //Get Event registrant information if possible
+            /** Get Event registrant information if possible **/
             eventRegistration = [
                     SELECT Registrant_First_Name__c, Registrant_Last_Name__c, Registrant_City__c, Registrant_State_Province__c, Registrant_State__c,
-                            Registrant_Postal_Code__c, Registrant_Zip__c, Registrant_Street_1__c, Registrant_Street_2__c, Registrant_Email__c, Registrant_Country__c
+                            Registrant_Postal_Code__c, Registrant_Zip__c, Registrant_Street_1__c, Registrant_Street_2__c, Registrant_Email__c, Registrant_Country__c,
+                            Event_Name__c, Event_Instance_Title__c, Date_Time_Text__c
                     FROM UST_Event_Registration__c
                     WHERE Id = :evtInfo.evtRegId
             ];
 
-            //Check for preexisting payment
+            /** Check for preexisting payment **/
             List<UST_Event_Payment__c> existingPayment = [SELECT Id, Payment_Amount__c, TouchnetReceiptNumber__c From UST_Event_Payment__c WHERE Event_Registration__c = :evtInfo.evtRegId];
             if (existingPayment.size() > 0) {
                 existingPaymentAmount = existingPayment[0].Payment_Amount__c;
             }
 
-            //Collect Fees
+            /** Collect Fees **/
             eventFees = [SELECT Name, Event_Fee__c, Fee_Index__c, Description__c, Fee_Type__c, UST_Event__c, Event_Appointment_Type__c FROM UST_Event_Fee__c WHERE Event_Registration__c = :evtInfo.EvtRegId];
             feesByIndex = new Map<String, String>();
             for (UST_Event_Fee__c fee : eventFees) {
@@ -141,23 +157,8 @@ public with sharing class USTEventSubmitController {
 
     }
 
-    public PageReference checkEventDetails() {
-        //Check for postback of payment gateway
-        params = ApexPages.currentPage().getParameters();
-        Map<String, String> returnHeaders = ApexPages.currentPage().getheaders();
-        if (returnHeaders.get('Referer') != null && returnHeaders.get('Referer').trim().toLowerCase().contains(gatewayOrigin)) {
-            /* Session Identifier will not come in case of cancel and Error*/
-            if (params.get('session_identifier') != null) {
-                successReturnFromGateway = true;
-                Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING, 'Your payment is processing. Please do not refresh the page.'));
-                return addPaymentInformation();
-            } else {
-
-                Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Transaction has been cancelled, please pay your fee.'));
-            }
-        }
-
-        /* Display headers and parameters for testing
+    public void displayTestingHeaders() {
+        /** OPTIONAL METHOD - Display headers and parameters for testing **/
         headers = '';
 
         MAP<string, string> hdrs = ApexPages.currentPage().getheaders();
@@ -177,8 +178,39 @@ public with sharing class USTEventSubmitController {
         }
 
         headers += '<br/><br/>';
+    }
 
-        */
+    public PageReference checkEventDetails() {
+
+        /** Below method will display headers and parameters for the page for testing. **/
+        //displayTestingHeaders();
+
+        /** Check for postback of payment gateway **/
+        params = ApexPages.currentPage().getParameters();
+        Map<String, String> returnHeaders = ApexPages.currentPage().getheaders();
+        if (!returnHeaders.isEmpty()) {
+            if (returnHeaders.get('Referer') != null) {
+                String returnedReferrer = returnHeaders.get('Referer').toLowerCase();
+                if (String.isNotBlank(returnedReferrer)) {
+                    if (String.isBlank(gatewayOrigin)) {
+                        Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING, 'Set your orgs gateway settings or fees will not be collected.'));
+                    } else {
+                        if (returnedReferrer.trim().contains(gatewayOrigin)) {
+                            /** Check for session identifier to see if a payment was successful **/
+                            if (params.get('session_identifier') != null) {
+                                successReturnFromGateway = true;
+                                Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING, 'Your payment is processing. Please do not refresh the page.'));
+                            } else {
+                                successReturnFromGateway = false;
+                                Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING, 'Your payment is processing was unsuccessful. Please try again.'));
+                            }
+                            return addPaymentInformation();
+                        }
+                    }
+                }
+            }
+        }
+
 
         successReturnFromGateway = false;
         return USTShared.checkForEvent();
@@ -190,14 +222,8 @@ public with sharing class USTEventSubmitController {
     }
 
     public PageReference previousPage() {
-        List<UST_Event_Appointment_Type__c> apptTypes = [
-                SELECT Id
-                From UST_Event_Appointment_Type__c
-                WHERE UST_Event__c = :evtInfo.evtId
-                AND (Restrict_To_Instance_Title__r.Instance_Title__c = :evtInstance.Instance_Title__c OR Restrict_To_Instance_Title__r.Instance_Title__c = null)
-        ];
         PageReference lastPage;
-        if (apptTypes.size() == 0) {
+        if (!eventHasOptions) {
             //If no options skip that step
             lastPage = Page.USTEventRegister;
         } else {
@@ -224,7 +250,7 @@ public with sharing class USTEventSubmitController {
         envelop += '            <typ:value>' + paymentAmount + '</typ:value>';
         envelop += '        </typ:nameValuePairs>';
 
-        //Add fees by index code
+        /** Add fees by index code **/
         Integer ff = 0;
         String accountSuffix = '';
         for (String key : feesByIndex.keySet()) {
@@ -244,7 +270,7 @@ public with sharing class USTEventSubmitController {
             ff++;
         }
 
-        //Pass along customer NAME to pre-fill form. Concat first and last name if they exist with a space between.
+        /** Pass along customer NAME to pre-fill form. Concat first and last name if they exist with a space between. **/
         if (String.isNotBlank(eventRegistration.Registrant_First_Name__c) || String.isNotBlank(eventRegistration.Registrant_Last_Name__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_NAME</typ:name>';
@@ -263,7 +289,8 @@ public with sharing class USTEventSubmitController {
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Pass along customer EMAIL to pre-fill form
+
+        /** Pass along customer EMAIL to pre-fill form **/
         if (String.isNotBlank(eventRegistration.Registrant_Email__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_EMAIL_ADDRESS</typ:name>';
@@ -271,7 +298,7 @@ public with sharing class USTEventSubmitController {
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Pass along customer ADDRESS 1 to pre-fill form
+        /** Pass along customer ADDRESS 1 to pre-fill form **/
         if (String.isNotBlank(eventRegistration.Registrant_Street_1__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_STREET1</typ:name>';
@@ -279,7 +306,7 @@ public with sharing class USTEventSubmitController {
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Pass along customer ADDRESS 2 to pre-fill form
+        /** Pass along customer ADDRESS 2 to pre-fill form **/
         if (String.isNotBlank(eventRegistration.Registrant_Street_2__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_STREET2</typ:name>';
@@ -287,7 +314,7 @@ public with sharing class USTEventSubmitController {
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Pass along customer CITY to pre-fill form
+        /** Pass along customer CITY to pre-fill form **/
         if (String.isNotBlank(eventRegistration.Registrant_City__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_CITY</typ:name>';
@@ -295,15 +322,15 @@ public with sharing class USTEventSubmitController {
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Pass along customer STATE to pre-fill form
+        /** Pass along customer STATE to pre-fill form **/
         if (String.isNotBlank(eventRegistration.Registrant_State__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_STATE</typ:name>';
-            envelop += '            <typ:value>' + eventRegistration.Registrant_State__c + '</typ:value>';
+            envelop += '            <typ:value>' + eventRegistration.Registrant_State__c.toUpperCase() + '</typ:value>';
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Pass along customer ZIP or POSTAL CODE to pre-fill form
+        /** Pass along customer ZIP or POSTAL CODE to pre-fill form **/
         if (String.isNotBlank(eventRegistration.Registrant_Zip__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_POSTAL_CODE</typ:name>';
@@ -316,15 +343,19 @@ public with sharing class USTEventSubmitController {
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Pass along customer COUNTRY to pre-fill form
+        /** Pass along customer COUNTRY to pre-fill form **/
         If (String.isNotBlank(eventRegistration.Registrant_Country__c)) {
             envelop += '        <typ:nameValuePairs>';
             envelop += '            <typ:name>BILL_COUNTRY</typ:name>';
-            envelop += '            <typ:value>' + eventRegistration.Registrant_Country__c + '</typ:value>';
+            if (eventRegistration.Registrant_Country__c.equalsIgnoreCase('united states')) {
+                envelop += '            <typ:value>US</typ:value>';
+            } else {
+                envelop += '            <typ:value>' + eventRegistration.Registrant_Country__c.toLowerCase() + '</typ:value>';
+            }
             envelop += '        </typ:nameValuePairs>';
         }
 
-        //Links where to send on different status
+        /** Links where to send on different return status -- All the same? **/
         envelop += '        <typ:nameValuePairs>';
         envelop += '            <typ:name>SUCCESS_LINK</typ:name>';
         envelop += '            <typ:value>' + communityBaseURL + 'USTEventSubmit</typ:value>';
@@ -344,7 +375,42 @@ public with sharing class USTEventSubmitController {
         envelop += '            <typ:value>' + evtInfo.evtRegId + '</typ:value>';
         envelop += '        </typ:nameValuePairs>';
 
-        //This could be an encrypted key
+        /** Event Label **/
+        if (String.isNotBlank(eventRegistration.Event_Name__c) || String.isNotBlank(eventRegistration.Event_Instance_Title__c)) {
+            List<String> eventLabel = new List<String>();
+            if (String.isNotBlank(eventRegistration.Event_Name__c)) {
+                eventLabel.add(eventRegistration.Event_Name__c);
+            }
+            if (String.isNotBlank(eventRegistration.Event_Instance_Title__c)) {
+                eventLabel.add(eventRegistration.Event_Instance_Title__c);
+            }
+            if (String.isNotBlank(eventRegistration.Date_Time_Text__c)) {
+                eventLabel.add(eventRegistration.Date_Time_Text__c);
+            }
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>EXT_TRANS_ID_LABEL</typ:name>';
+            envelop += '            <typ:value>' + String.join(eventLabel, ' - ') + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
+        /** Additional Donation settings **/
+        envelop += '        <typ:nameValuePairs>';
+        envelop += '            <typ:name>ADD_ON_OFFER_DISABLED</typ:name>';
+        if (eventPage.Payment_Gateway_Donation__c) {
+            envelop += '            <typ:value>false</typ:value>';
+        } else {
+            envelop += '            <typ:value>true</typ:value>';
+        }
+        envelop += '        </typ:nameValuePairs>';
+
+
+        if (String.isNotBlank(eventPage.Payment_Gateway_Donation_Index__c)) {
+            envelop += '        <typ:nameValuePairs>';
+            envelop += '            <typ:name>ADD_ON_OFFER_CREDIT_ACCT_CODE</typ:name>';
+            envelop += '            <typ:value>' + eventPage.Payment_Gateway_Donation_Index__c + '</typ:value>';
+            envelop += '        </typ:nameValuePairs>';
+        }
+
         envelop += '        <typ:nameValuePairs>';
         envelop += '            <typ:name>POSTING_KEY</typ:name>';
         envelop += '            <typ:value>' + evtInfo.evtRegId + '</typ:value>';
@@ -352,17 +418,17 @@ public with sharing class USTEventSubmitController {
         envelop += '    </typ:generateSecureLinkTicketRequest>';
         envelop += '</soapenv:Body>';
         envelop += '</soapenv:Envelope>';
-        System.debug(envelop);
 
+        // Get ride of multiples spaces maintained for readability above
+        envelop = envelop.normalizeSpace();
+
+        System.debug(envelop);
 
         try {
             HTTP h = new HTTP();
             HTTPRequest r = new HTTPRequest();
             r.setEndpoint(touchNetService);
-            Blob headerValue = Blob.valueOf('Enrollment:m49g3TEXu');
-            String authorizationHeader = 'Basic ' + EncodingUtil.base64Encode(headerValue);
-            System.debug('print authorizationHeader: ' + authorizationHeader);
-            r.setHeader('Authorization', authorizationHeader);
+            r.setHeader('Authorization', getAuthorizationHeader());
             r.setHeader('SOAPAction', touchNetService);
             r.setMethod('GET');
             r.setBody(envelop);
@@ -375,6 +441,22 @@ public with sharing class USTEventSubmitController {
         } catch (Exception ex) {
             Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.FATAL, 'Error connecting payment gateway, please try later!!' + ex.getMessage()));
         }
+    }
+
+    private String getAuthorizationHeader() {
+        UST_Event_Settings__c ustEventSettings = UST_Event_Settings__c.getOrgDefaults();
+
+        Blob headerValue = Blob.valueOf('Enrollment:m49g3TEXu');
+        String authorizationHeader = 'Basic ' + EncodingUtil.base64Encode(headerValue);
+
+        /*
+        Blob headerValue = Blob.valueOf('Enrollment:' + ustEventSettings.Encryption_Key__c.substring(0,9));
+        String authorizationHeader = 'Basic ' + EncodingUtil.base64Encode(headerValue);
+        System.Debug ('AUTH HEADER:  ' + authorizationHeader);
+        */
+
+        return authorizationHeader;
+
     }
 
     @TestVisible private String walkThrough(DOM.XMLNode node) {
@@ -407,7 +489,7 @@ public with sharing class USTEventSubmitController {
     }
 
     public PageReference addPaymentInformation() {
-        PageReference pageRedirect = new PageReference(ApexPages.currentPage().getUrl());
+        PageReference pageRedirect = null;
         Savepoint sp = null;
         try {
             if (successReturnFromGateway) {
@@ -418,19 +500,16 @@ public with sharing class USTEventSubmitController {
                 envelop += '        <typ:authorizeAccountRequest>';
                 envelop += '            <typ:session>' + params.get('session_identifier') + '</typ:session>';
                 envelop += '            <typ:invoiceNumber>' + evtInfo.evtRegId + '</typ:invoiceNumber>';
-                envelop += '            <typ:ancillaryData>EnrollmentRx Berkeley</typ:ancillaryData>';
-                envelop += '            <typ:application>EnrollmentRx</typ:application>';
+//                envelop += '            <typ:ancillaryData>EnrollmentRx Berkeley</typ:ancillaryData>';
+//                envelop += '            <typ:application>EnrollmentRx</typ:application>';
                 envelop += '            </typ:authorizeAccountRequest>';
                 envelop += '    </soapenv:Body>';
                 envelop += '</soapenv:Envelope>';
                 HTTP h = new HTTP();
                 HTTPRequest r = new HTTPRequest();
                 r.setTimeout(120000); // timeout in milliseconds
-
                 r.setEndpoint(touchNetService);
-                Blob headerValue = Blob.valueOf('Enrollment:m49g3TEXu');
-                String authorizationHeader = 'Basic ' + EncodingUtil.base64Encode(headerValue);
-                r.setHeader('Authorization', authorizationHeader);
+                r.setHeader('Authorization', getAuthorizationHeader());
                 r.setHeader('SOAPAction', touchNetService);
                 r.setMethod('GET');
                 r.setBody(envelop);
@@ -442,7 +521,7 @@ public with sharing class USTEventSubmitController {
                 system.debug('###4' + mapResponse);
                 system.debug('###5' + mapResponse.get('pmt_status'));
 
-                //check if application has payment information
+
                 if (mapResponse.containskey('receiptNumber') && mapResponse.get('receiptNumber') != '') {
                     //feeTypeInfo = getTransactionFeeName();
                     sp = Database.setSavepoint();
@@ -479,6 +558,8 @@ public with sharing class USTEventSubmitController {
                     successReturnFromGateway = false;
                     Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR, 'Transaction was not successful, please try again'));
                 }
+            } else {
+                return pageRedirect;
             }
         } catch (Exception ex) {
             Apexpages.addMessage(new ApexPages.Message(ApexPages.Severity.FATAL, 'Payment can not be processed, please try later!!' + ex));
