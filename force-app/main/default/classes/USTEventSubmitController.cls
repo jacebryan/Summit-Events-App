@@ -521,7 +521,6 @@ public with sharing class USTEventSubmitController {
                 system.debug('###4' + mapResponse);
                 system.debug('###5' + mapResponse.get('pmt_status'));
 
-
                 if (mapResponse.containskey('receiptNumber') && mapResponse.get('receiptNumber') != '') {
                     //feeTypeInfo = getTransactionFeeName();
                     sp = Database.setSavepoint();
@@ -549,6 +548,8 @@ public with sharing class USTEventSubmitController {
                     paymentInformation.Payment_Received_Date__c = System.Now();
                     insert paymentInformation;
 
+                    //Update fees
+
                     successReturnFromGateway = false;
 
                     pageRedirect = Page.USTEventConfirmation;
@@ -569,7 +570,7 @@ public with sharing class USTEventSubmitController {
             toAddresses.add('dahl3702@stthomas.edu');
 
             // Sets the paramaters of the email
-            email.setSubject('Thomas Transaction Error');
+            email.setSubject('UST Events Transaction Error');
             email.setToAddresses(toAddresses);
             email.setPlainTextBody(ex.getStackTraceString() + '***' + ex.getMessage());
 
