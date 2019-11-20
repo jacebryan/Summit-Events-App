@@ -548,7 +548,13 @@ public with sharing class USTEventSubmitController {
                     paymentInformation.Payment_Received_Date__c = System.Now();
                     insert paymentInformation;
 
-                    //Update fees
+                    //Update fees to connect the payment record to them.
+
+                    for(Integer fi = 0; fi < eventFees.size(); fi++) {
+                        eventFees[fi].UST_Event_Payment__c = paymentInformation.Id;
+                        eventFees[fi].UST_Event__c = evtInfo.evtId;
+                    }
+                    upsert eventFees;
 
                     successReturnFromGateway = false;
 
