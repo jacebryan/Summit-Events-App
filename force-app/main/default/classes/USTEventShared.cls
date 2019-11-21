@@ -5,7 +5,6 @@
 
 public with sharing class USTEventShared {
     //private key for encryption
-    Private Blob key = Blob.valueOf('TmC%2%1119fzG2PrtP7f&6acnc#y8@vr');
     Public String defaultTemplate = 'CastorTemplate2017';
     private String encryptionString {get;set;}
 

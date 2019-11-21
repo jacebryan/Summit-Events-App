@@ -89,7 +89,7 @@ public with sharing class USTEventSubmitController {
 
         if (!String.isBlank(evtinfo.evtRegId)) {
             chosenAppts = [
-                    SELECT Id, Appointment_Category__c, Event_Appointment_Type__c, Appointment_Type__c, Description__c, Appointment_Title__c, Chosen_State__C,
+                    SELECT Id, Appointment_Category__c, Event_Appointment_Type__c, Appointment_Type__c, Description__c, Appointment_Title__c, Chosen_State__C
                     FROM UST_Event_Appointments__c
                     WHERE Event_Registration__c = :evtinfo.evtRegId
                     AND Chosen_State__c != 'Added but not shown'
