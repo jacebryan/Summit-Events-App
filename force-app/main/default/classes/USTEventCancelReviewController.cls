@@ -34,7 +34,7 @@ public with sharing class USTEventCancelReviewController {
                 }
                 templateSelected = evt.Event__r.Template__c;
                 appt = [SELECT Id, Appointment_Title__c, Appointment_Category__c, Appointment_Type__c FROM UST_Event_Appointments__c WHERE Event_Registration__c = :regId];
-                if (evt.Event_Instance__r.End_Date_Time__c < UStShared.adjustForCenteralTime(Datetime.now())) {
+                if (evt.Event_Instance__r.End_Date_Time__c < UStShared.adjustForOrgTimezone(Datetime.now())) {
                     eventOver = true;
                 }
             } else {

@@ -32,16 +32,16 @@ public static void initializeEventSampleData() {
     demoEventInstances.add(new UST_Event_Instance__c (
             Event__c = demoEvent.Id,
             Active_Status__c = 'Active',
-            Start_Date_Time__c = System.Today().addDays(7),
-            End_Date_Time__c = System.Today().addDays(7),
+            Start_Date_Time__c = System.now().addDays(7).addSeconds(-60),
+            End_Date_Time__c = System.now().addDays(7).addSeconds(60),
             Capacity__c = 100
     ));
 
     demoEventInstances.add(new UST_Event_Instance__c (
             Event__c = demoEvent.Id,
             Active_Status__c = 'Active',
-            Start_Date_Time__c = System.Today().addDays(10),
-            End_Date_Time__c = System.Today().addDays(10),
+            Start_Date_Time__c = System.now().addDays(7).addSeconds(-60),
+            End_Date_Time__c = System.now().addDays(7).addSeconds(60),
             Capacity__c = 100
     ));
 

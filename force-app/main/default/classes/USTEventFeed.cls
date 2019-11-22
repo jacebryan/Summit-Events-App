@@ -91,7 +91,7 @@ global with sharing class USTEventFeed {
         eventQuery += ' Event__r.Location_Title__c, Event__r.Location_Type__c, Event__r.Location_Address__c, Event__r.Location_Map_Link__c, Event__r.Building__c, Event__r.Event_description__c, Event__r.Community_Base_URL__c, ';
         eventQuery += ' Building_Override__c, Alternate_Registration_URL_Override__c, Location_Address_Override__c, Location_Map_Link_Override__c, Location_Title_Override__c, Location_Type_Override__c,  ';
         eventQuery += ' Event__r.Event_Short_Listing_Description__c, Event__r.Audience__c, Event__r.Close_Event_Days_Before__c, Start_Date_Time__c, End_Date_Time__c, Event__r.Event_Sponsor__c, ';
-        eventQuery += ' Event__r.Feed_Registration_Button_Text__c, Feed_Registration_Button_Text_Override__c, Capacity__c, Current_Available_Capacity__c ';
+        eventQuery += ' Event__r.Feed_Registration_Button_Text__c, Feed_Registration_Button_Text_Override__c, Capacity__c, Current_Available_Capacity__c, Event_Location_Time_Zone__c ';
         eventQuery += ' FROM UST_Event_Instance__c ';
         eventQuery += ' WHERE ';
         eventQuery += ' Event__R.Event_Status__c = \'Active\' ';
@@ -200,7 +200,7 @@ global with sharing class USTEventFeed {
         for (UST_Event_Instance__c es : EventInstance) {
             regDateOpenDate = Datetime.now().addDays(-1);
             if (es.Event__r.Close_Event_Days_Before__c != null && es.Event__r.Close_Event_Days_Before__c != 0) {
-                regDateOpenDate = USTShared.adjustForCenteralTime(Datetime.now());
+                regDateOpenDate = USTShared.adjustForOrgTimezone(Datetime.now(), es.Event_Location_Time_Zone__c);
                 regDateOpenDate = regDateOpenDate.addDays((Integer.valueOf(es.Event__r.Close_Event_Days_Before__c) + 1));
             }
             eventItem evt = new eventItem();
@@ -274,10 +274,10 @@ global with sharing class USTEventFeed {
             }
 
             if (es.Start_Date_Time__c != null) {
-                evt.start = USTShared.adjustForCenteralTime(es.Start_Date_Time__c);
+                evt.start = USTShared.adjustForOrgTimezone(es.Start_Date_Time__c, es.Event_Location_Time_Zone__c);
             }
             if (es.End_Date_Time__c != null) {
-                evt.endDate = USTShared.adjustForCenteralTime(es.End_Date_Time__c);
+                evt.endDate = USTShared.adjustForOrgTimezone(es.End_Date_Time__c, es.Event_Location_Time_Zone__c);
             }
 
             if (!String.isBlank(es.Event__r.Location_Title__c) || !String.isBlank(es.Location_Title_Override__c)) {

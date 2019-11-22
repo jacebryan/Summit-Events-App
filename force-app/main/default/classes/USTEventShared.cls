@@ -171,13 +171,24 @@ public with sharing class USTEventShared {
         return '';
     }
 
-    public DateTime adjustForCenteralTime(Datetime dt) {
+    public DateTime adjustForOrgTimezone(Datetime dt, String timeZoneString) {
         //Get the current GMT time and adjust for our timezone
         //tz = TimeZone.getTimeZone('America/Chicago');
         //Timezone adjustment example below:
         //Datetime NowDate = Datetime.now();
         //NowDate = NowDate.addSeconds(tz.getOffset(NowDate)/1000);
-        TimeZone tz = TimeZone.getTimeZone('America/Chicago');
+        //Default to central time
+        TimeZone tz = null;
+        if (String.isBlank(timeZoneString) || timeZoneString.toLowerCase().startsWith('company')) {
+            //Query for org timezone
+            Organization orgTime = [SELECT Id, TimeZoneSidKey FROM Organization LIMIT 1];
+            if (orgTime != null) {
+                timeZoneString = orgTime.TimeZoneSidKey;
+            } else {
+                timeZoneString = 'America/Chicago';
+            }
+        }
+        tz = TimeZone.getTimeZone(timeZoneString);
         dt = dt.addSeconds(tz.getOffset(dt) / 1000);
         return dt;
     }

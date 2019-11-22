@@ -73,7 +73,8 @@ public with sharing class USTEventRegisterController {
             evtInstance = [
                     SELECT Id, Name, Event__r.Name, Event__r.Event_Name__c, Event__r.Id, Instance_Title__c, Active_Status__c, Capacity__c,
                             Event__r.Event_description__c, Event__r.Audience__c, Start_Date_Time__c, End_Date_Time__c, Current_Available_Capacity__c,
-                            Location_Type_Override__c, Location_Address_Override__c, Event__r.Close_Event_Days_Before__c, Location_Map_Link_Override__c, Location_Title_Override__c
+                            Location_Type_Override__c, Location_Address_Override__c, Event__r.Close_Event_Days_Before__c, Location_Map_Link_Override__c, Location_Title_Override__c,
+                            Event_Location_Time_Zone__c
                     FROM UST_Event_Instance__c
                     WHERE Id = :evtInfo.instanceID
                     LIMIT 1
@@ -82,7 +83,7 @@ public with sharing class USTEventRegisterController {
             //define Event ID from instanceInfo data
             evtInfo.evtId = evtInstance.Event__r.Id;
             instanceName = evtInstance.Name;
-            Datetime currentDT = USTShared.adjustForCenteralTime(Datetime.Now());
+            Datetime currentDT = USTShared.adjustForOrgTimezone(Datetime.Now(), evtInstance.Event_Location_Time_Zone__c);
 
             if (evtInstance.Event__r.Close_Event_Days_Before__c != null) {
                 currentDT = currentDT.addDays(Integer.Valueof(evtInstance.Event__r.Close_Event_Days_Before__c) + 1);
@@ -171,7 +172,10 @@ public with sharing class USTEventRegisterController {
             }
 
             if (evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null) {
-                eventStartDateTimeCrumb = evtInstance.Start_Date_Time__c.format('MMMM d, YYYY, h:mm a') + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a');
+                eventStartDateTimeCrumb = '';
+                eventStartDateTimeCrumb += evtInstance.Start_Date_Time__c.format('MMMM d, YYYY, h:mm a', evtInstance.Event_Location_Time_Zone__c);
+                eventStartDateTimeCrumb += ' - ';
+                eventStartDateTimeCrumb += evtInstance.End_Date_Time__c.format('h:mm a', evtInstance.Event_Location_Time_Zone__c);
             }
 
             if (!String.isBlank(locationCrumb)) {
@@ -179,7 +183,7 @@ public with sharing class USTEventRegisterController {
                 String eventTime = '';
                 if (evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null) {
                     eventTime = evtInstance.Start_Date_Time__c.format('EEEE MMMM dd, YYYY');
-                    eventTime += '<br/>' + evtInstance.Start_Date_Time__c.format('h:mm a') + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a') + '<br/>';
+                    eventTime += '<br/>' + evtInstance.Start_Date_Time__c.format('h:mm a', evtInstance.Event_Location_Time_Zone__c) + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a', evtInstance.Event_Location_Time_Zone__c) + '<br/>';
                 }
                 locationCrumb = eventTime + locationCrumb;
                 locationCrumb = '<h3>Event Details</h3> <p>' + locationCrumb + '</p>';

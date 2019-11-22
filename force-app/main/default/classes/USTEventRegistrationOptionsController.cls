@@ -57,7 +57,7 @@ public with sharing class USTEventRegistrationOptionsController {
                 }
 
                 if (evtInstance != null) {
-                    //Datetime rightNow = USTShared.adjustForCenteralTime(Datetime.now());
+                    //Datetime rightNow = USTShared.adjustForOrgTimezone(Datetime.now());
                     String dayOfWeek = evtInstance.Start_Date_Time__c.format('EEEE');
                     // = dayOfWeek;
                     //Build available appointments
