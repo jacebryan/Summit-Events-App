@@ -1766,9 +1766,9 @@
         <layout>UST_Event_Host__c-Class Layout</layout>
         <recordType>UST_Event_Host__c.Housing</recordType>
     </layoutAssignments>
-    <layoutAssignments>
-        <layout>UST_Event_Instance__c-Event Instance Layout</layout>
-    </layoutAssignments>
+<!--    <layoutAssignments>-->
+<!--        <layout>UST_Event_Instance__c-Event Instance Layout</layout>-->
+<!--    </layoutAssignments>-->
     <layoutAssignments>
         <layout>UST_Event_Registration__c-UDAR Event Registration Layout</layout>
     </layoutAssignments>

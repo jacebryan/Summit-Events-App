@@ -55,6 +55,10 @@
                 <behavior>Edit</behavior>
                 <field>Banner_Event_Function_Code__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Required</behavior>
+                <field>Event_Location_Time_Zone__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>
@@ -180,6 +184,15 @@
     </layoutSections>
     <relatedLists>
         <fields>NAME</fields>
+        <fields>RECORDTYPE</fields>
+        <fields>First_Name__c</fields>
+        <fields>Last_Name__c</fields>
+        <fields>Assigned__c</fields>
+        <fields>Remaining__c</fields>
+        <relatedList>UST_Event_Host__c.Event_Instance__c</relatedList>
+    </relatedLists>
+    <relatedLists>
+        <fields>NAME</fields>
         <fields>Contact__c</fields>
         <fields>Preferred_First_Name_Formatted__c</fields>
         <fields>Number_of_Guests__c</fields>
@@ -223,7 +236,7 @@
     <showRunAssignmentRulesCheckbox>false</showRunAssignmentRulesCheckbox>
     <showSubmitAndAttachButton>false</showSubmitAndAttachButton>
     <summaryLayout>
-        <masterLabel>00hn0000000RoLQ</masterLabel>
+        <masterLabel>00hS0000001hmbY</masterLabel>
         <sizeX>4</sizeX>
         <sizeY>2</sizeY>
         <summaryLayoutItems>
