@@ -647,9 +647,7 @@ public with sharing class USTEventRegisterController {
                 FROM UST_Event_Fee__c
                 WHERE Fee_Type__c != 'Appointment' AND Fee_Type__c != 'Appointment Additional'
         ];
-        //List<UST_Event_Fee__c> deleteFees = new List<UST_Event_Fee__c>();
         if (recordedEventFeeList.size() > 0) {
-           // List<UST_Event_Fee__c> upsertFees = new List<UST_Event_Fee__c>();
             //Fees already exist so checks need to be made if current fees are there
             List<Id> recordedUsedIds = new list<Id>();
             for (Integer ff = 0; ff < eventFeeList.size(); ff++) {
