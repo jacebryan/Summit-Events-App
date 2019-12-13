@@ -145,8 +145,7 @@ public with sharing class USTEventRegistrationOptionsController {
 
 
                     Map<Id, UST_Event_Appointments__c> chosenAppointmentsByIds = new Map<Id, UST_Event_Appointments__c>([
-                            SELECT Id, Appointment_Category__c,
-//                                    Event_Appointment_Type__c,
+                            SELECT Id, Appointment_Category__c, Event_Appointment_Type__c,
                                     Appointment_Type__c, Appointment_Title__c, Chosen_State__c, Description__c, Sort_Order__c,
                                     Registrant_Input__c, Do_Not_Show_Time__c
                             FROM UST_Event_Appointments__c
