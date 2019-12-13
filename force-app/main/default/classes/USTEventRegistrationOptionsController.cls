@@ -16,10 +16,11 @@ public with sharing class USTEventRegistrationOptionsController {
     public UST_Event__C eventPage { get; set; }
     public String templateSelected { get; set; }
     public Boolean noOptionalAppointments { get; set; }
-    public Boolean requiredAppt {get;set;}
-    public String eventStartDateTimeCrumb {get;set;}
+    public Boolean requiredAppt { get; set; }
+    public String eventStartDateTimeCrumb { get; set; }
+    public String appointmentJSON { get; set; }
 
-    public class incomingAppt {
+    public class incomingAppointments {
         String apptId;
         String apptCatagory;
         String apptType;
@@ -28,6 +29,33 @@ public with sharing class USTEventRegistrationOptionsController {
         String appDesc;
         String appSort;
         String appInput;
+    }
+
+    public class appointmentDataTwo {
+        String Id;
+        String Name;
+        String title;
+        String description;
+        Integer choosable;
+        List<appointmentData> appointments;
+    }
+
+    public class appointmentData {
+        String typeId;
+        Boolean selected;
+        String title;
+        String appointmentType;
+        String AppointmentCategory;
+        String AppointmentLimits;
+        Integer displaySort;
+        String inputType;
+        String picklist;
+        Boolean required;
+        String fee;
+        String description;
+        String chosenId;
+        Integer chosenSort;
+        String chosenValue;
     }
 
     public USTEventRegistrationOptionsController() {
@@ -46,13 +74,14 @@ public with sharing class USTEventRegistrationOptionsController {
                     SELECT Event_Name__c, Event_description__c, Event_Appointment_Title__c, Event_Appointment_Description__c, Event_Footer__c,
                             Template__c, Event_Home_Link_Title__c, Event_Home_Link_URL__c, Tracking_Options_Registration__c
                     FROM UST_Event__c
-                    WHERE Id = :evtinfo.evtId][0];
+                    WHERE Id = :evtinfo.evtId
+            ][0];
             templateSelected = eventPage.Template__c;
 
             if (!String.isBlank(evtinfo.evtRegId)) {
                 evtInstance = [SELECT Instance_Title__c, Start_Date_Time__c, End_Date_Time__c FROM UST_Event_Instance__c WHERE Id = :evtinfo.instanceID LIMIT 1];
 
-                if(evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null ) {
+                if (evtInstance.Start_Date_Time__c != null && evtInstance.End_Date_Time__c != null) {
                     eventStartDateTimeCrumb = evtInstance.Start_Date_Time__c.format('MMMM d, YYYY, h:mm a') + ' - ' + evtInstance.End_Date_Time__c.format('h:mm a');
                 }
 
@@ -61,11 +90,11 @@ public with sharing class USTEventRegistrationOptionsController {
                     String dayOfWeek = evtInstance.Start_Date_Time__c.format('EEEE');
                     // = dayOfWeek;
                     //Build available appointments
-                    appts = new Map<ID, UST_Event_Appointment_Type__c>( [
+                    appts = new Map<ID, UST_Event_Appointment_Type__c>([
                             SELECT Id, Name, Title__c, Description__c, Appointment_Type__c, Appointment_Category__c, Appointment_Limits__c, Chosen_State__c,
                                     Registrant_Input__c, Custom_Picklist__c, Sort_Order__c, Auto_Confirm_Appointment__c, Auto_add_building__c, Auto_Add_Time__c, Do_Not_Show_Time__c,
                                     Date_Available_Start__c, Date_Available_End__c, Day_of_Week_Availability__c, Required_Appointment__c, Appointment_Type_Status__c,
-                                    Appointment_Fee__c, Appointment_Fee_Index__c, Appointment_Fee_Additional__c, Appointment_Fee_Additional_Index__c
+                                    Appointment_Fee__c, Appointment_Fee_Index__c, Appointment_Fee_Additional__c, Appointment_Fee_Additional_Index__c, Appointment_Group__c
                             FROM UST_Event_Appointment_Type__c
                             WHERE UST_Event__c = :evtinfo.evtId
                             AND (Restrict_To_Instance_Title__r.Instance_Title__c = :evtInstance.Instance_Title__c OR Restrict_To_Instance_Title__r.Instance_Title__c = null)
@@ -76,13 +105,113 @@ public with sharing class USTEventRegistrationOptionsController {
                             ORDER BY Sort_Order__c ASC NULLS LAST
                     ]);
 
+
+                    /* Get and generate object for appointment groups */
+                    Map<Id, UST_Event_Appointment_Type_Group__c> appointmentGroups = new Map<Id, UST_Event_Appointment_Type_Group__c>([
+                            SELECT Id, Name, Appointment_Group_Heading__c, Appointment_Group_Description__c, Choosable_Appointment_Amount__c
+                            FROM UST_Event_Appointment_Type_Group__c
+                            WHERE UST_Event__c = :evtinfo.evtId
+                    ]);
+
+                    Map<Id, appointmentDataTwo> appointmentDataTwos = new Map<Id, appointmentDataTwo>();
+
+                    appointmentDataTwo placeholder = new appointmentDataTwo();
+                    placeholder.Id = null;
+                    placeholder.Name = 'GENERAL PLACEHOLDER';
+                    placeholder.title = 'GENERAL PLACEHOLDER';
+                    placeholder.description = '';
+                    placeholder.choosable = 99;
+                    placeholder.appointments = new List<appointmentData>();
+                    appointmentDataTwos.put(placeholder.Id, placeholder);
+
+                    for (UST_Event_Appointment_Type_Group__c ag : appointmentGroups.values()) {
+                        placeholder = new appointmentDataTwo();
+                        placeholder.Id = String.valueOf(ag.Id);
+                        placeholder.Name = ag.Name;
+                        placeholder.title = ag.Appointment_Group_Heading__c;
+                        placeholder.description = ag.Appointment_Group_Description__c;
+                        placeholder.choosable = Integer.valueOf(ag.Choosable_Appointment_Amount__c);
+                        placeholder.appointments = new List<appointmentData>();
+                        appointmentDataTwos.put(placeholder.Id, placeholder);
+                    }
+
                     //Check if the user gets to select any appointments or they are all auto added
                     for (UST_Event_Appointment_Type__c chosenCheck : appts.values()) {
-                        If (chosenCheck.Chosen_State__c != 'Added and Required' && chosenCheck.Chosen_State__c != 'Added but not shown' ) {
+                        If (chosenCheck.Chosen_State__c != 'Added and Required' && chosenCheck.Chosen_State__c != 'Added but not shown') {
                             noOptionalAppointments = false;
                             break;
                         }
                     }
+
+
+                    Map<Id, UST_Event_Appointments__c> chosenAppointmentsByIds = new Map<Id, UST_Event_Appointments__c>([
+                            SELECT Id, Appointment_Category__c,
+//                                    Event_Appointment_Type__c,
+                                    Appointment_Type__c, Appointment_Title__c, Chosen_State__c, Description__c, Sort_Order__c,
+                                    Registrant_Input__c, Do_Not_Show_Time__c
+                            FROM UST_Event_Appointments__c
+                            WHERE Event_Registration__c = :evtinfo.evtRegId
+                            AND Client_Created_Appointment__c = true
+                    ]);
+
+
+                    Map<UST_Event_Appointment_Type_Group__c, appointmentData> allAppointmentData = new Map<UST_Event_Appointment_Type_Group__c, appointmentData>();
+
+
+                    for (UST_Event_Appointment_Type__c appointmentList : appts.values()) {
+                        appointmentData appointmentIn = new appointmentData();
+                        appointmentIn.typeId = appointmentList.Id;
+                        if (chosenAppointmentsByIds.get(appointmentIn.typeId) != null) {
+                            appointmentIn.chosenId = chosenAppointmentsByIds.get(appointmentIn.typeId).Id;
+                            appointmentIn.selected = true;
+                            appointmentIn.chosenValue = chosenAppointmentsByIds.get(appointmentIn.typeId).Description__c;
+                            appointmentIn.appointmentType = chosenAppointmentsByIds.get(appointmentIn.typeId).Event_Appointment_Type__c;
+                            appointmentIn.chosenSort = Integer.valueOf(chosenAppointmentsByIds.get(appointmentIn.typeId).Sort_Order__c);
+                        } else {
+                            appointmentIn.chosenId = '';
+                            appointmentIn.selected = false;
+                            appointmentIn.chosenValue = '';
+                            appointmentIn.appointmentType = '';
+                            appointmentIn.chosenSort = Integer.valueOf(appointmentList.Sort_Order__c);
+                        }
+                        appointmentIn.description = appointmentList.Description__c;
+                        appointmentIn.title = appointmentList.Title__c;
+                        appointmentIn.AppointmentCategory = appointmentList.Appointment_Category__c;
+                        appointmentIn.AppointmentLimits = appointmentList.Appointment_Limits__c;
+                        appointmentIn.inputType = appointmentList.Registrant_Input__c;
+                        appointmentIn.picklist = appointmentList.Custom_Picklist__c;
+                        if (appointmentList.Appointment_Category__c != null) {
+                            //getDependentSelectOptions(String parentObjName, String parentFieldName, String dependentFieldName, String parentValue)
+                            appointmentIn.inputType = 'categoryPicklist';
+                            Map<String, String> dependencies = USTShared.getDependentSelectOptions('UST_Event_Appointment_Type__c', 'Appointment_Category__c', 'Appointment_Type__c', appointmentList.Appointment_Category__c);
+                            appointmentIn.picklist = String.join(dependencies.values(), ';');
+                        } else if (String.isNotBlank(appointmentList.Custom_Picklist__c)) {
+                            appointmentIn.picklist = appointmentList.Custom_Picklist__c.replaceAll('\\r\\n', ';');
+                        } else {
+                            appointmentIn.picklist = '';
+                        }
+                        appointmentIn.displaySort = Integer.valueOf(appointmentList.Sort_Order__c);
+                        appointmentIn.required = appointmentList.Required_Appointment__c;
+                        Double totalFee = 0;
+                        if (appointmentList.Appointment_Fee__c != null) {
+                            totalFee += appointmentList.Appointment_Fee__c;
+                        }
+                        if (appointmentList.Appointment_Fee_Additional__c != null) {
+                            totalFee += appointmentList.Appointment_Fee_Additional__c;
+                        }
+                        appointmentIn.fee = String.valueOf(totalFee);
+
+//                        if (String.isNotBlank(appointmentList.Appointment_Group__c)) {
+//                            appointmentDataTwos.get(appointmentList.Appointment_Group__c).appointments.add(appointmentIn);
+//                        } else {
+//                            appointmentDataTwos.get(null).appointments.add(appointmentIn);
+//                        }
+
+                    }
+
+
+                    appointmentJSON = JSON.serializePretty(appointmentDataTwos.values());
+
 
                     //Gather up the appointments that have already been chosen.
                     chosenAppts = [
@@ -197,7 +326,7 @@ public with sharing class USTEventRegistrationOptionsController {
                     apptFormatted += '</textarea>';
                 }
                 if (apt.Registrant_Input__c == 'Custom pick list' || apt.Registrant_Input__c == 'Required custom pick list') {
-                    if(!String.isBlank(apt.Custom_Picklist__c)) {
+                    if (!String.isBlank(apt.Custom_Picklist__c)) {
                         apptFormatted += '<select';
                         if (apt.Registrant_Input__c == 'Required custom pick list') {
                             apptFormatted += ' required="required" class="appointmentCustomInput required" ';
@@ -233,7 +362,7 @@ public with sharing class USTEventRegistrationOptionsController {
     public PageReference checkEventDetails() {
         PageReference eventActivePg = USTShared.checkForEvent();
         if (eventActivePg == null) {
-            //Get event into
+//Get event into
             evtInfo = USTShared.getUSTEventInfo();
             Boolean addedAppts = false;
             Id RegId = evtinfo.evtRegId;
@@ -243,7 +372,7 @@ public with sharing class USTEventRegistrationOptionsController {
                             Chosen_State__c, Sort_Order__c, Auto_Confirm_Appointment__c, Auto_add_building__c, Auto_Add_Time__c, Do_Not_Show_Time__c
                     FROM UST_Event_Appointment_Type__c
                     WHERE UST_Event__c = :evtinfo.evtId
-                    AND (Chosen_State__c = 'Added' OR Chosen_State__c = 'Added and Required'  OR Chosen_State__c = 'Added but not shown')
+                    AND (Chosen_State__c = 'Added' OR Chosen_State__c = 'Added and Required' OR Chosen_State__c = 'Added but not shown')
                     AND Id NOT IN (SELECT Event_Appointment_Type__c FROM UST_Event_Appointments__c WHERE Event_Registration__c = :RegId)
                     AND (Restrict_To_Instance_Title__r.Instance_Title__c = :evtInstance.Instance_Title__c OR Restrict_To_Instance_Title__r.Instance_Title__c = null)
                     ORDER BY Sort_Order__c ASC NULLS LAST
@@ -276,7 +405,7 @@ public with sharing class USTEventRegistrationOptionsController {
     }
 
     public PageReference saveOptions() {
-        //remove old client created appointments
+//remove old client created appointments
         UST_Event_Appointments__c[] deleteAppt = [
                 SELECT Id, Event_Registration__c, Client_Created_Appointment__c, Chosen_State__c, Do_Not_Show_Time__c
                 FROM UST_Event_Appointments__c
@@ -288,9 +417,9 @@ public with sharing class USTEventRegistrationOptionsController {
         } catch (DmlException e) {
             System.Debug('HERE IS THE DROID YOU ARE LOOKING FOR ======>' + e.getMessage());
         }
-        List<incomingAppt> deserializedInvoices = (List<incomingAppt>) JSON.deserialize(incomingApptJSon, List<incomingAppt>.class);
+        List<incomingAppointments> deserializedInvoices = (List<incomingAppointments>) JSON.deserialize(incomingApptJSon, List<incomingAppointments>.class);
         PageReference submitPage = Page.USTEventSubmit;
-        for (incomingAppt appt : deserializedInvoices) {
+        for (incomingAppointments appt : deserializedInvoices) {
             UST_event_Appointments__c addAppt = new UST_Event_Appointments__c();
             addAppt.Event_Registration__c = evtInfo.evtRegId;
             addAppt.Appointment_Status__c = 'Registered';
@@ -305,14 +434,14 @@ public with sharing class USTEventRegistrationOptionsController {
                 addAppt.Appointment_Type__c = appt.apptType;
             }
             addAppt.Appointment_title__c = appt.apptTitle;
-            if(appt.appSort == null) {
+            if (appt.appSort == null) {
                 addAppt.Sort_Order__c = 99;
             } else {
                 addAppt.Sort_Order__c = Integer.valueOf(appt.appSort);
             }
 
-            //Auto add fields from appointment type as defined auto add
-            //TODO: slim down on ui interface storing values and used appt Type map ID to get them
+//Auto add fields from appointment type as defined auto add
+//TODO: slim down on ui interface storing values and used appt Type map ID to get them
             if (!String.isBlank(apptDefinition.Auto_add_building__c)) {
                 addAppt.Building__c = apptDefinition.Auto_add_building__c;
             }
@@ -322,7 +451,7 @@ public with sharing class USTEventRegistrationOptionsController {
             if (apptDefinition.Do_Not_Show_Time__c != null) {
                 addAppt.Do_Not_Show_Time__c = apptDefinition.Do_Not_Show_Time__c;
             }
-            if(apptDefinition.Auto_Add_Time__c != null) {
+            if (apptDefinition.Auto_Add_Time__c != null) {
                 addAppt.Appointment_Time__c = apptDefinition.Auto_Add_Time__c;
             }
             addAppt.Description__c = appt.appDesc;

@@ -43,6 +43,10 @@
                 <behavior>Edit</behavior>
                 <field>Auto_Add_Time__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Edit</behavior>
+                <field>Appointment_Group__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>

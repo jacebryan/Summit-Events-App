@@ -480,8 +480,8 @@ public with sharing class USTEventRegisterController {
 
         List<Schema.PicklistEntry> PicklistValues = Schema.getGlobalDescribe().get(namespace + YourObjectName).getDescribe().fields.getMap().get(namespace + YourFieldName).getDescribe().getPicklistValues();
 
-        if(includeSelect) {
-            picklists.add(new SelectOption('','Select...'));
+        if (includeSelect) {
+            picklists.add(new SelectOption('', 'Select...'));
         }
 
         for (Schema.PicklistEntry PicklistValue : PicklistValues) {
@@ -495,7 +495,7 @@ public with sharing class USTEventRegisterController {
             UST_Event_Settings__c ustEventSettings = UST_Event_Settings__c.getOrgDefaults();
             if (String.isBlank(ustEventSettings.Encryption_Key__c)) {
                 Blob cryptoKey = Crypto.generateAesKey(256);
-                String encryptionString = EncodingUtil.base64Encode(cryptoKey).substring(0,32);
+                String encryptionString = EncodingUtil.base64Encode(cryptoKey).substring(0, 32);
                 ustEventSettings.Encryption_Key__c = encryptionString;
                 //upsert new UST_Event_Settings__c(SetupOwnerId=UserInfo.getOrganizationId(), Encryption_Key__c='encryptionString');
                 upsert ustEventSettings;
@@ -645,7 +645,9 @@ public with sharing class USTEventRegisterController {
         List<UST_Event_Fee__c> recordedEventFeeList = [
                 SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c
                 FROM UST_Event_Fee__c
-                WHERE Fee_Type__c != 'Appointment' AND Fee_Type__c != 'Appointment Additional'
+                WHERE Fee_Type__c != 'Appointment'
+                AND Fee_Type__c != 'Appointment Additional'
+                AND Event_Registration__c = :evtInfo.evtRegId
         ];
         if (recordedEventFeeList.size() > 0) {
             //Fees already exist so checks need to be made if current fees are there
@@ -664,10 +666,12 @@ public with sharing class USTEventRegisterController {
             List<UST_Event_Fee__c> deleteEventFees = [
                     SELECT Id, Fee_Type__c, Fee_Index__c, Event_Fee__c
                     FROM UST_Event_Fee__c
-                    WHERE Fee_Type__c != 'Appointment' AND Fee_Type__c != 'Appointment Additional'
+                    WHERE Fee_Type__c != 'Appointment'
+                    AND Fee_Type__c != 'Appointment Additional'
+                    AND Event_Registration__c = :evtInfo.evtRegId
                     AND Id NOT IN :recordedUsedIds
             ];
-            if (deleteEventFees.size()>0) {
+            if (deleteEventFees.size() > 0) {
                 delete deleteEventFees;
             }
         } else {
@@ -684,8 +688,10 @@ public with sharing class USTEventRegisterController {
 
 
         if (String.isNotBlank(evtInfo.evtRegId) && evtInfo.evtRegId != 'COMING') {
-            if (evtHasAppointments) {
+            if (evtHasAppointments && eventFeeList.isEmpty()) {
                 optionPage = Page.USTEventRegistrationOptions;
+            } else if (!evtHasAppointments && eventFeeList.size() > 0) {
+                optionPage = Page.USTEventSubmit;
             } else {
                 optionPage = Page.USTEventConfirmation;
             }
