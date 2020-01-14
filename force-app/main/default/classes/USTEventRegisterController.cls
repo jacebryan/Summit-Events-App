@@ -2,7 +2,7 @@
  * Created by dahl3702 on 5/1/2018.
  */
 
-public with sharing class USTEventRegisterController {
+public without sharing class USTEventRegisterController {
     public String test { get; set; }
     public UST_Event_Instance__c eventInstance { get; set; }
     public UST_Event__c eventPage { get; set; }
@@ -60,7 +60,6 @@ public with sharing class USTEventRegisterController {
         evtInfo = USTShared.getUSTEventInfo();
 
         //Set applicant type if audience is passed
-        //System.debug(JSON.serializePretty(evtInfo));
         if (!String.isBlank(evtInfo.audience)) {
             if (evtInfo.audience == 'Transfer' || evtInfo.audience == 'Transfer International') {
                 applicantType = 'Transfer';
@@ -209,7 +208,6 @@ public with sharing class USTEventRegisterController {
                 guestAmt = new List<SelectOption>();
                 if (Integer.valueOf(eventPage.Max_Other_Attendees__c) > 0) {
                     for (Integer ma = 0; ma <= Integer.valueOf(eventPage.Max_Other_Attendees__c); ma++) {
-                        System.debug(ma);
                         guestAmt.add(new SelectOption(String.valueOf(ma), String.valueOf(ma)));
                     }
                 }
@@ -593,7 +591,6 @@ public with sharing class USTEventRegisterController {
                 matchingScope = 'Full matching contact creation with duplicate management';
             }
             if (!matchingScope.startsWith('No matching')) {
-                System.debug('PASSING TO MATCHING METHOD');
                 matched = matcher.USTEventContactMatching(evtInfo.recordTypeName, newEvtReg, matchingScope);
                 //Populate matching results into data - matched may be blank depending on the Contact_Creation__c setting
                 if (matched.size() > 0) {
@@ -688,9 +685,9 @@ public with sharing class USTEventRegisterController {
 
 
         if (String.isNotBlank(evtInfo.evtRegId) && evtInfo.evtRegId != 'COMING') {
-            if (evtHasAppointments && eventFeeList.isEmpty()) {
+            if (evtHasAppointments) {
                 optionPage = Page.USTEventRegistrationOptions;
-            } else if (!evtHasAppointments && eventFeeList.size() > 0) {
+            } else if (eventFeeList.size() > 0) {
                 optionPage = Page.USTEventSubmit;
             } else {
                 optionPage = Page.USTEventConfirmation;

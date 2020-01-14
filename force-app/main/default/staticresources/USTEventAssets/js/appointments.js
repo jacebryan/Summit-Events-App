@@ -1,13 +1,18 @@
 document.addEventListener("DOMContentLoaded", () => {
-    let apptFormatted = '';
-    let chooser =  document.querySelector("#chooser");
-    for (i = 0; i < appointments.length; i++) {
-        apptGroup = appointments[i];
+
+    let chooser = document.querySelector("#chooser");
+    let choosen = document.querySelector("#choosen");
+
+    //Build the interface from JSON data
+    for (var key in allAppts) {
+        apptGroup = allAppts[key];
+        apptGroupId = key;
         grp = document.createElement("div");
         if (apptGroup.typeId) {
-            grp.setAttribute("id", apptGroup.typeId);
+            grp.setAttribute("id", apptGroup[key]);
         } else {
             grp.setAttribute("id", 'generalPlaceholder');
+            apptGroup.groupId = 'generalPlaceholder';
         }
         grp.setAttribute("data-choosable", apptGroup.choosable);
         grp.classList.add('apptGroup');
@@ -15,65 +20,89 @@ document.addEventListener("DOMContentLoaded", () => {
         grp.innerHTML += '<p class="apptGroupDesc">' + apptGroup.description + '</p>';
         chooser.append(grp);
 
-        for (ii = 0; ii < apptGroup.appointments.length; ii++) {
-            appt = apptGroup.appointments[ii];
-            apptItem= document.createElement("div");
+        for (var key in apptGroup.appointments) {
+            let appt = apptGroup.appointments[key];
+            let apptItem = document.createElement("div");
+            let itemDetail = '';
             apptItem.setAttribute("id", appt.typeId);
-            apptItem.setAttribute("data-groupTypeId",  apptGroup.Id);
-            apptItem.setAttribute("data-apptTypeId",  appt.typeId);
-            apptItem.setAttribute("data-apptId",  appt.chosenId);
+            apptItem.setAttribute("data-groupTypeId", apptGroupId);
+            apptItem.setAttribute("data-apptTypeId", appt.typeId);
+            apptItem.setAttribute("data-apptId", appt.chosenId);
             apptItem.classList.add("appointment");
             apptItem.innerHTML = '<p class="appointmentTitle"><a href="javascript:;" class="optionToggler"><span>' + appt.title + '</span></span><i class="fa fa-chevron-down" aria-hidden="true"></i></a></p>';
-            apptItemDesc = document.createElement("div");
+
+            itemDetail = '<p class="appointmentDesc">' + appt.description + '</p>';
+            itemDetail += '<a href="javascript:;" class="appointmentAdd"><span><i class="fa fa-plus" aria-hidden="true"></i> Add appointment</span></a>';
+
+            itemDetail += '<a class="appointmentRemove" ';
+            if (!appt.selected) {
+                itemDetail += 'style="display:none;"';
+            }
+            itemDetail += ' ><i class="fa fa-times-circle" aria-hidden="true"></i><span> Remove</span></a>';
+
+            let apptItemDesc = document.createElement("div");
             apptItemDesc.classList.add("apptmentDetail");
-            apptItemDesc.innerHTML = '<p class="appointmentDesc">' + appt.description + '</p>';
-            apptItemDesc.innerHTML += '<a href="javascript:;" class="appointmentAdd"><span><i class="fa fa-plus" aria-hidden="true"></i> Add appointment</span></a>';
+            apptItemDesc.innerHTML = itemDetail
             apptItem.append(apptItemDesc);
             grp.append(apptItem);
 
         }
-        apptFormatted += '</div>';
     }
 
-    document.querySelector("#chooser").append(grp);
+    chooser.append(grp);
 
-    var apptTitles = document.getElementsByClassName("appointmentTitle");
-    for (var i = 0; i < apptTitles.length; i++) {
-        var clickedElem = apptTitles[i];
-        clickedElem.addEventListener('click', function(evt) {
-            showAppointmentDetail(this)
-        }, false);
-    }
+    var choiceAppt = chooser.getElementsByClassName("appointment");
 
-    function showAppointmentDetail(appt) {
-        //alert(appt.innerHTML);
-        var toggleThis = appt.closest("div");
-        var children = toggleThis.childNodes, number_of_children = children.length;
-        for (var i=0; i<number_of_children; i++) {
-            if (children[i].classList.contains("apptmentDetail")) {
-                //alert(children[i].innerHTML);
-                toggle(children[i], 'block');
+    for (var at = 0; at < choiceAppt.length; at++) {
+
+        let currectAppt = choiceAppt[at];
+
+        //Add event listener for title toggle for description
+        let descToggler = currectAppt.querySelector(".optionToggler");
+        descToggler.addEventListener('click', function () {
+            var desc = currectAppt.querySelector(".apptmentDetail");
+            var apptIcon = this.querySelector("i");
+            if (apptIcon.classList.contains("fa-chevron-down")) {
+                apptIcon.classList.remove("fa-chevron-down");
+                apptIcon.classList.add("fa-chevron-up")
+            } else {
+                apptIcon.classList.remove("fa-chevron-up");
+                apptIcon.classList.add("fa-chevron-down")
             }
+            toggle(desc, "block");
+        });
+
+        let addAppt = currectAppt.querySelector(".appointmentAdd");
+        if (addAppt !== null) {
+            addAppt.addEventListener('click', function () {
+                toggle(currectAppt.querySelector(".appointmentAdd"), 'block');
+                toggle(currectAppt.querySelector(".appointmentRemove"), 'block');
+                changeApppointmentData(currectAppt, true);
+                choosen.appendChild(currectAppt);
+            });
         }
+
+        let removeAppt = currectAppt.querySelector(".appointmentRemove");
+        if (removeAppt !== null) {
+            removeAppt.addEventListener('click', function () {
+                toggle(currectAppt.querySelector(".appointmentAdd"), 'block');
+                toggle(currectAppt.querySelector(".appointmentRemove"), 'block');
+                changeApppointmentData(currectAppt, false);
+                chooser.appendChild(currectAppt);
+            });
+        }
+
     }
-
-
-    // $(".appointmentTitle a").on("click", function () {
-    //     if ($(this).find("i").hasClass("fa-chevron-down")) {
-    //         $(this).find("i").removeClass("fa-chevron-down").addClass("fa-chevron-up");
-    //     } else {
-    //         $(this).find("i").removeClass("fa-chevron-up").addClass("fa-chevron-down");
-    //     }
-    //     $(this).closest(".appointment").find(".apptmentDetail").slideToggle("fast");
-    // });
-
-    $("#chooser .appointmentAdd").on("click", function () {
-        //find apptGroup, does it exist in the choosen pile add if it does not
-        //Add appointment to appointment group
-        alert('click');
-    })
 
 });
+
+function changeApppointmentData(selAppt, choosenState) {
+    let grpId = selAppt.dataset.grouptypeid;
+    let typeId = selAppt.dataset.appttypeid;
+    let apptId =  selAppt.dataset.apptid;
+    allAppts[grpId].appointments[typeId].selected = choosenState;
+    sendAppointmentInfo(typeId, grpId, apptId, choosenState, '');
+}
 
 
 function toggle(el, value) {
@@ -89,33 +118,3 @@ function hide(el) {
 function show(el, value) {
     el.style.display = value;
 }
-
-function toggle(el, value) {
-    var display = (window.getComputedStyle ? getComputedStyle(el, null) : el.currentStyle).display;
-    if (display == 'none') el.style.display = value;
-    else el.style.display = 'none';
-}
-
-
-// matches polyfill
-this.Element && function(ElementPrototype) {
-    ElementPrototype.matches = ElementPrototype.matches ||
-        ElementPrototype.matchesSelector ||
-        ElementPrototype.webkitMatchesSelector ||
-        ElementPrototype.msMatchesSelector ||
-        function(selector) {
-            var node = this, nodes = (node.parentNode || node.document).querySelectorAll(selector), i = -1;
-            while (nodes[++i] && nodes[i] != node);
-            return !!nodes[i];
-        }
-}(Element.prototype);
-
-// closest polyfill
-this.Element && function(ElementPrototype) {
-    ElementPrototype.closest = ElementPrototype.closest ||
-        function(selector) {
-            var el = this;
-            while (el.matches && !el.matches(selector)) el = el.parentNode;
-            return el.matches ? el : null;
-        }
-}(Element.prototype);
